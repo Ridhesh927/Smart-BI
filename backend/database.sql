@@ -1,4 +1,4 @@
--- AutoBI Studio Database Schema
+-- SmartDash Database Schema
 -- Run this in your MySQL client to build out the necessary tables
 
 CREATE DATABASE IF NOT EXISTS \`autobi_studio\`;

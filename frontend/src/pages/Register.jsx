@@ -40,7 +40,7 @@ export default function Register() {
 
       <Link to="/" className="absolute top-8 left-8 flex items-center gap-2 text-xl font-bold text-white">
         <BarChart3 className="text-blue-500" />
-        AutoBI
+        SmartDash
       </Link>
 
       <div className="glass p-10 rounded-2xl w-full max-w-md shadow-2xl relative z-10 border border-slate-800">

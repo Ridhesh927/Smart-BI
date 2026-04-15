@@ -10,16 +10,38 @@ const paymentsRoutes = require('./routes/payments');
 
 const app = express();
 
-// --- Middleware Setup ---
+// --- CORS MUST come first before any other middleware ---
 
-// Configure CORS to accept requests from frontend dev server
 const corsOptions = {
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, Postman)
+    // or from any localhost port during development
+    if (!origin) return callback(null, true);
+    const allowed = [
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      'http://localhost:5174',
+      'http://127.0.0.1:5174',
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+    ];
+    if (allowed.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS: ' + origin));
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  optionsSuccessStatus: 200  // Some legacy browsers (IE11) choke on 204
 };
+
+// Apply CORS globally
 app.use(cors(corsOptions));
+
+// Handle ALL preflight OPTIONS requests explicitly — this MUST be before routes
+app.options('/{*path}', cors(corsOptions));
 
 // Specific headers for Firebase Google Popup COOP issues
 app.use((req, res, next) => {
@@ -40,13 +62,12 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboards', dashboardsRoutes);
 app.use('/api/datasets', datasetsRoutes);
-// Optional mapping for just /api/upload for simpler semantic paths
-app.use('/api/upload', datasetsRoutes); 
+app.use('/api/upload', datasetsRoutes);
 app.use('/api/payment', paymentsRoutes);
 
 // Healthcheck Route
 app.get('/', (req, res) => {
-  res.status(200).json({ status: "AutoBI Studio API is running flawlessly." });
+  res.status(200).json({ status: "SmartDash API is running flawlessly." });
 });
 
 // Start Server
