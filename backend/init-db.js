@@ -13,7 +13,7 @@ async function initializeDatabase() {
       password: process.env.DB_PASSWORD || '',
     });
 
-    const dbName = process.env.DB_NAME || 'autobi_studio';
+    const dbName = process.env.DB_NAME || 'smart_dash_db';
 
     console.log(`Ensuring database '${dbName}' exists...`);
     await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);

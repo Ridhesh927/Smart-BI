@@ -7,6 +7,7 @@ const authRoutes = require('./routes/auth');
 const dashboardsRoutes = require('./routes/dashboards');
 const datasetsRoutes = require('./routes/datasets');
 const paymentsRoutes = require('./routes/payments');
+const aiRoutes = require('./routes/ai');
 
 const app = express();
 
@@ -43,10 +44,11 @@ app.use('/api/datasets', datasetsRoutes);
 // Optional mapping for just /api/upload for simpler semantic paths
 app.use('/api/upload', datasetsRoutes); 
 app.use('/api/payment', paymentsRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Healthcheck Route
 app.get('/', (req, res) => {
-  res.status(200).json({ status: "AutoBI Studio API is running flawlessly." });
+  res.status(200).json({ status: "Smart Dash API is running flawlessly." });
 });
 
 // Start Server

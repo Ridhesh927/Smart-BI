@@ -23,7 +23,6 @@ export default function Home() {
         const dashData = dashRes.ok ? await dashRes.json() : [];
         setDashboards(dashData);
 
-        // Fetch datasets count (you can update this API later, using dashboards for now as proof of concept)
         const dataRes = await fetch(`${import.meta.env.VITE_API_URL}/datasets`, { headers });
         const datasetData = dataRes.ok ? await dataRes.json() : [];
         setDatasetsCount(datasetData.length);
@@ -37,32 +36,7 @@ export default function Home() {
     fetchData();
   }, [user]);
 
-  const generateSeedData = async () => {
-    setLoading(true);
-    try {
-      const token = await user?.getIdToken();
-      const headers = { 
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      };
-      
-      const seedNames = ["Q3 Sales Analytics", "User Expansion Report", "Marketing Campaign ROI", "Product Usage Metrics"];
-      
-      for (const name of seedNames) {
-        await fetch(`${import.meta.env.VITE_API_URL}/dashboards`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ title: name, layout_data: [] })
-        });
-      }
-      
-      // Auto refresh
-      window.location.reload();
-    } catch (err) {
-      alert("Error seeding data: " + err.message);
-      setLoading(false);
-    }
-  };
+
 
   const stats = [
     { label: "Total Dashboards", value: dashboards.length.toString(), icon: <BarChart3 size={24} className="text-blue-500" />, trend: "Updated recently" },
@@ -115,13 +89,7 @@ export default function Home() {
                  <FileWarning className="text-blue-400" size={32} />
               </div>
               <h3 className="text-xl font-bold text-white mb-2">No dashboards found</h3>
-              <p className="text-slate-400 mb-6 max-w-md">You haven't created any dashboards yet. You can build one from scratch or instantly auto-generate some beautiful demo data!</p>
-              <button 
-                onClick={generateSeedData}
-                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition-all shadow-lg shadow-blue-500/20"
-              >
-                Generate Demo Data
-              </button>
+              <p className="text-slate-400 max-w-md">You haven't created any dashboards yet. Start by building your first interactive workspace.</p>
             </div>
           )}
 

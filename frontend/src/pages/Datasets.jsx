@@ -1,16 +1,93 @@
-import { useState } from "react";
-import { UploadCloud, FileText, Search, Filter, MoreHorizontal, FileSpreadsheet, Trash2 } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { UploadCloud, FileText, Search, Filter, MoreHorizontal, FileSpreadsheet, Trash2, Loader2, Download, ExternalLink } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 export default function Datasets() {
+  const { user } = useAuth();
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
-  
-  const mockDatasets = [
-    { id: 1, name: "sales_data_2026_Q1.csv", size: "4.2 MB", rows: "45,210", date: "Oct 12, 2026", type: "csv" },
-    { id: 2, name: "user_metrics_export.xlsx", size: "12.8 MB", rows: "128,400", date: "Oct 09, 2026", type: "xlsx" },
-    { id: 3, name: "marketing_campaign_leads.csv", size: "1.1 MB", rows: "8,450", date: "Oct 01, 2026", type: "csv" },
-    { id: 4, name: "product_inventory_master.csv", size: "845 KB", rows: "3,200", date: "Sep 25, 2026", type: "csv" },
-  ];
+  const [datasets, setDatasets] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const fileInputRef = useRef(null);
+
+  const fetchDatasets = useCallback(async () => {
+    try {
+      setLoading(true);
+      const token = await user?.getIdToken();
+      if (!token) return;
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/datasets`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setDatasets(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch datasets:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) fetchDatasets();
+  }, [user, fetchDatasets]);
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) handleUpload(file);
+  };
+
+  const handleUpload = async (file) => {
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      const token = await user?.getIdToken();
+      const formData = new FormData();
+      formData.append('dataset', file);
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/datasets/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const result = await response.json();
+      if (response.ok) {
+        fetchDatasets();
+      } else {
+        alert("Upload failed: " + result.error);
+      }
+    } catch (err) {
+      console.error("Upload error:", err);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm("Are you sure you want to delete this dataset?")) return;
+
+    try {
+      const token = await user?.getIdToken();
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/datasets/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        setDatasets(datasets.filter(ds => ds.id !== id));
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+    }
+  };
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -24,114 +101,157 @@ export default function Datasets() {
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
-    handleFakeUpload();
-  };
-  
-  const handleFakeUpload = () => {
-    setUploading(true);
-    setTimeout(() => {
-      setUploading(false);
-      alert("Dataset uploaded successfully! (Mock)");
-    }, 2000);
+    const file = e.dataTransfer.files[0];
+    if (file) handleUpload(file);
   };
 
+  const formatSize = (bytes) => {
+    if (!bytes) return "0 B";
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const filteredDatasets = datasets.filter(ds => 
+    ds.file_name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Datasets Manager</h1>
-          <p className="text-slate-400">Upload, organize, and prepare your data sources.</p>
+          <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Datasets Manager</h1>
+          <p className="text-slate-400">Upload, organize, and prepare your data sources for AI analysis.</p>
         </div>
       </div>
 
-      {/* Upload Wizard */}
       <div 
-        className={`border-2 border-dashed rounded-2xl p-12 text-center transition-all ${
-          isDragging ? "border-blue-500 bg-blue-500/10" : "border-slate-700 bg-slate-900/50 hover:border-slate-500 hover:bg-slate-900/80"
+        className={`border-2 border-dashed rounded-3xl p-12 text-center transition-all relative overflow-hidden ${
+          isDragging ? "border-blue-500 bg-blue-500/10 scale-[1.01]" : "border-slate-800 bg-slate-900/40 hover:border-slate-600 hover:bg-slate-900/60"
         }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6">
-          <UploadCloud size={40} className={`transition-colors ${isDragging ? "text-blue-400" : "text-slate-400"}`} />
+        <input 
+          type="file" 
+          ref={fileInputRef}
+          onChange={handleFileSelect}
+          className="hidden"
+          accept=".csv,.xlsx,.json"
+        />
+        
+        {uploading && (
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm z-20 flex flex-col items-center justify-center animate-in fade-in duration-200">
+            <Loader2 className="w-10 h-10 text-blue-500 animate-spin mb-4" />
+            <h3 className="text-lg font-bold text-white">Uploading Dataset...</h3>
+            <p className="text-sm text-slate-400">Processing your data structure</p>
+          </div>
+        )}
+
+        <div className="w-20 h-20 bg-slate-800/50 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl border border-slate-700">
+          <UploadCloud size={40} className={`transition-colors ${isDragging ? "text-blue-400" : "text-slate-500"}`} />
         </div>
         <h3 className="text-xl font-bold text-white mb-2">
-          {uploading ? "Uploading dataset..." : "Drag & drop your files here"}
+          Drag & drop your records here
         </h3>
-        <p className="text-slate-400 mb-6 max-w-md mx-auto">
-          Support for CSV, Excel (.xlsx), and JSON files up to 500MB. AutoBI will automatically detect your schema.
+        <p className="text-slate-500 mb-8 max-w-md mx-auto text-sm leading-relaxed">
+          Support for CSV, Excel (.xlsx), and JSON files up to 500MB. AutoBI will automatically extract dimensions and measures.
         </p>
         <button 
-          className="bg-white text-slate-900 px-6 py-2.5 rounded-xl font-medium hover:bg-slate-200 transition-colors disabled:opacity-50"
-          onClick={handleFakeUpload}
-          disabled={uploading}
+          className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:from-blue-500 hover:to-indigo-500 transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+          onClick={() => fileInputRef.current.click()}
         >
-          {uploading ? "Processing..." : "Browse Files"}
+          Browse Files
         </button>
       </div>
 
-      {/* Datasets List */}
-      <div className="glass rounded-2xl border border-slate-800 overflow-hidden">
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+      <div className="glass rounded-3xl border border-slate-800/50 overflow-hidden shadow-2xl">
+        <div className="p-6 border-b border-slate-800/50 flex items-center justify-between bg-slate-900/20">
+          <div className="flex items-center gap-4 flex-1">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
               <input 
                 type="text" 
-                placeholder="Search datasets..." 
-                className="bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none w-64"
+                placeholder="Search your library..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-slate-950/50 border border-slate-800 rounded-xl pl-12 pr-4 py-2.5 text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none w-full transition-all"
               />
             </div>
-            <button className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors bg-slate-950 border border-slate-800 rounded-lg px-3 py-2">
-              <Filter size={16} /> Filter
-            </button>
           </div>
-          <div className="text-sm text-slate-400">
-            {mockDatasets.length} datasets
+          <div className="flex items-center gap-6">
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+              {filteredDatasets.length} total sources
+            </div>
+            <button className="p-2.5 text-slate-400 hover:text-white transition-colors bg-slate-800/50 border border-slate-700 rounded-xl">
+              <Filter size={18} />
+            </button>
           </div>
         </div>
         
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-800 text-xs uppercase tracking-wider text-slate-500 bg-slate-900/30">
-                <th className="p-4 font-medium rounded-tl-2xl">Name</th>
-                <th className="p-4 font-medium">Size</th>
-                <th className="p-4 font-medium">Rows</th>
-                <th className="p-4 font-medium">Last Modified</th>
-                <th className="p-4 font-medium rounded-tr-2xl text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800">
-              {mockDatasets.map((ds) => (
-                <tr key={ds.id} className="hover:bg-slate-800/30 transition-colors group">
-                  <td className="p-4 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400">
-                      {ds.type === 'csv' ? <FileText size={20} className="text-green-400" /> : <FileSpreadsheet size={20} className="text-emerald-500" />}
-                    </div>
-                    <div>
-                      <div className="font-medium text-slate-200">{ds.name}</div>
-                      <div className="text-xs text-slate-500 uppercase">{ds.type} File</div>
-                    </div>
-                  </td>
-                  <td className="p-4 text-sm text-slate-400">{ds.size}</td>
-                  <td className="p-4 text-sm text-slate-400">{ds.rows}</td>
-                  <td className="p-4 text-sm text-slate-400">{ds.date}</td>
-                  <td className="p-4 text-right">
-                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors">
-                        Preview
-                      </button>
-                      <button className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
+        <div className="overflow-x-auto min-h-[300px]">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center p-20 text-slate-600">
+              <Loader2 size={32} className="animate-spin mb-4" />
+              <p className="text-sm font-medium">Synchronizing your library...</p>
+            </div>
+          ) : filteredDatasets.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-20 text-slate-600">
+              <FileText size={48} className="mb-4 opacity-20" />
+              <p className="text-sm font-medium">No datasets found in your library.</p>
+              <p className="text-xs">Upload a file to start your analysis.</p>
+            </div>
+          ) : (
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-800/50 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 bg-slate-900/10">
+                  <th className="p-6 font-bold">Source Name</th>
+                  <th className="p-6 font-bold text-center">Data Size</th>
+                  <th className="p-6 font-bold text-center">Status</th>
+                  <th className="p-6 font-bold">Created At</th>
+                  <th className="p-6 font-bold text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-800/30">
+                {filteredDatasets.map((ds) => (
+                  <tr key={ds.id} className="hover:bg-blue-500/[0.02] transition-colors group">
+                    <td className="p-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-11 h-11 rounded-xl bg-slate-800/50 border border-slate-700 flex items-center justify-center text-slate-400 group-hover:scale-110 transition-transform">
+                          {ds.file_name.endsWith('.csv') ? <FileText size={20} className="text-blue-400" /> : <FileSpreadsheet size={20} className="text-emerald-400" />}
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-200 text-sm group-hover:text-white transition-colors">{ds.file_name}</div>
+                          <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{ds.file_name.split('.').pop()} SOURCE</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-6 text-center text-xs font-medium text-slate-400">{formatSize(ds.file_size)}</td>
+                    <td className="p-6 text-center">
+                      <span className="px-3 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[9px] font-bold rounded-full uppercase tracking-widest italic">Ready</span>
+                    </td>
+                    <td className="p-6 text-xs text-slate-500">{new Date(ds.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                    <td className="p-6 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button className="p-2.5 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-xl transition-all" title="Preview">
+                          <ExternalLink size={18} />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(ds.id)}
+                          className="p-2.5 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all" 
+                          title="Delete"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>

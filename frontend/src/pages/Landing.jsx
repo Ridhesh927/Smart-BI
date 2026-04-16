@@ -23,12 +23,12 @@ export default function Landing() {
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-purple-600/20 blur-[120px]" />
       <div className="absolute top-[20%] right-[20%] w-[30%] h-[30%] rounded-full bg-indigo-500/10 blur-[100px]" />
 
-      <header className="absolute top-0 w-full p-8 flex justify-between items-center z-10">
+      <header className="absolute top-0 w-full p-8 flex justify-between items-center z-50">
         <div className="flex items-center gap-2 text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
             <BarChart3 size={24} strokeWidth={2.5} />
           </div>
-          AutoBI
+          Smart Dash
         </div>
         <div className="flex items-center gap-6">
           <Link to="/login" className="text-slate-300 hover:text-white transition">Login</Link>
@@ -46,7 +46,7 @@ export default function Landing() {
           className="flex flex-col items-center"
         >
           <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass text-blue-300 text-sm font-medium mb-8">
-            <Zap size={16} className="text-amber-400" /> AutoBI Studio v2.0 is live
+            <Zap size={16} className="text-amber-400" /> Smart Dash Studio v2.0 is live
           </motion.div>
           
           <motion.h1 variants={itemVariants} className="text-6xl md:text-8xl font-black tracking-tight leading-[1.1] mb-6">

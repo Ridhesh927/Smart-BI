@@ -16,14 +16,14 @@ async function ensureUserExists(uid, email) {
 
 // Create Dashboard
 router.post('/', verifyToken, async (req, res) => {
-  const { title, layout_data } = req.body;
+  const { title, layout_data, visuals_data } = req.body;
   const { uid, email } = req.user;
 
   try {
     const ownerId = await ensureUserExists(uid, email);
     const [result] = await pool.query(
-      `INSERT INTO dashboards (owner_id, name, layout_json, visuals_json) VALUES (?, ?, ?, ?)`,
-      [ownerId, title || 'Untitled Dashboard', JSON.stringify(layout_data || []), JSON.stringify([])]
+      `INSERT INTO dashboards (owner_id, title, layout_json, visuals_json) VALUES (?, ?, ?, ?)`,
+      [ownerId, title || 'Untitled Dashboard', JSON.stringify(layout_data || []), JSON.stringify(visuals_data || [])]
     );
     res.status(201).json({ id: result.insertId, message: "Dashboard created successfully" });
   } catch (error) {
@@ -38,7 +38,7 @@ router.get('/', verifyToken, async (req, res) => {
   try {
     const ownerId = await ensureUserExists(uid, email);
     const [rows] = await pool.query(
-      `SELECT id, name AS title, created_at, updated_at FROM dashboards WHERE owner_id = ? ORDER BY updated_at DESC`,
+      `SELECT id, title, created_at, updated_at FROM dashboards WHERE owner_id = ? ORDER BY updated_at DESC`,
       [ownerId]
     );
     res.status(200).json(rows);
@@ -75,7 +75,7 @@ router.put('/:id', verifyToken, async (req, res) => {
   try {
     const ownerId = await ensureUserExists(uid, email);
     const [result] = await pool.query(
-      `UPDATE dashboards SET name = ?, layout_json = ?, visuals_json = ? WHERE id = ? AND owner_id = ?`,
+      `UPDATE dashboards SET title = ?, layout_json = ?, visuals_json = ? WHERE id = ? AND owner_id = ?`,
       [title, JSON.stringify(layout_data || []), JSON.stringify(visuals_data || []), id, ownerId]
     );
     if (result.affectedRows === 0) return res.status(404).json({ error: "Dashboard not found or unauthorized" });

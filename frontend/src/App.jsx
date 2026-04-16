@@ -6,6 +6,7 @@ import Register from "./pages/Register";
 import Home from "./pages/Home";
 import Datasets from "./pages/Datasets";
 import Studio from "./pages/Studio";
+import Settings from "./pages/Settings";
 import AppLayout from "./components/AppLayout";
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
           <Route element={<AppLayout />}>
             <Route path="/home" element={<Home />} />
             <Route path="/datasets" element={<Datasets />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
         </Routes>
       </AuthProvider>
