@@ -140,10 +140,13 @@ router.get('/:id/schema', verifyToken, async (req, res) => {
             const headers = Object.keys(results[0]);
             headers.forEach(header => {
               const sampleValue = results[0][header];
-              const isNumeric = !isNaN(parseFloat(sampleValue)) && isFinite(sampleValue);
+              const numVal = parseFloat(sampleValue);
+              const isNumeric = !isNaN(numVal) && isFinite(sampleValue);
+              // Year-like columns (4-digit integers 1900-2100) are dimensions, not measures
+              const isYear = isNumeric && Number.isInteger(numVal) && numVal >= 1900 && numVal <= 2100;
               columns.push({
                 name: header,
-                type: isNumeric ? 'measure' : 'dimension',
+                type: (isNumeric && !isYear) ? 'measure' : 'dimension',
                 dataType: isNumeric ? 'number' : 'string'
               });
             });
@@ -162,9 +165,11 @@ router.get('/:id/schema', verifyToken, async (req, res) => {
         headers.forEach((header, index) => {
           const sampleValue = firstRow[index];
           const isNumeric = typeof sampleValue === 'number';
+          // Year-like columns (4-digit integers 1900-2100) are dimensions, not measures
+          const isYear = isNumeric && Number.isInteger(sampleValue) && sampleValue >= 1900 && sampleValue <= 2100;
           columns.push({
             name: header,
-            type: isNumeric ? 'measure' : 'dimension',
+            type: (isNumeric && !isYear) ? 'measure' : 'dimension',
             dataType: isNumeric ? 'number' : 'string'
           });
         });
@@ -217,16 +222,19 @@ router.get('/:id/values/:field', verifyToken, async (req, res) => {
 
     if (!data || data.length === 0) return res.json([]);
 
-    // Check if field exists in the data to avoid AlaSQL crash
+    // Check if field exists in the data
     const firstRow = data[0];
     if (firstRow && !Object.keys(firstRow).includes(field)) {
       return res.status(400).json({ error: `Column '${field}' not found in dataset` });
     }
+    const uniqueValues = [...new Set(
+      data
+        .map((row) => row[field])
+        .filter((value) => value !== undefined && value !== null && String(value).trim() !== '')
+        .map((value) => String(value))
+    )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 
-    const query = `SELECT DISTINCT \`${field}\` AS val FROM ? ORDER BY \`${field}\` ASC`;
-    const result = alasql(query, [data]);
-    
-    res.status(200).json(result.map(r => r.val).filter(v => v !== undefined && v !== null));
+    res.status(200).json(uniqueValues);
 
   } catch (error) {
     console.error("Values Fetch Error:", error);
@@ -273,6 +281,10 @@ router.post('/:id/query', verifyToken, async (req, res) => {
     // Build AlaSQL Query
     const selDimensions = (dimensions || []).map(d => `\`${d}\``).join(', ');
     const selMeasures = (measures || []).map(m => {
+      // Virtual COUNT field - maps to COUNT(1)
+      if (m.field === '__count__') {
+        return `COUNT(1) AS [\`Number of Records\`]`;
+      }
       const agg = m.aggregation || 'SUM';
       return `${agg}(\`${m.field}\`) AS \`${m.field}\``;
     }).join(', ');
@@ -281,7 +293,7 @@ router.post('/:id/query', verifyToken, async (req, res) => {
     let groupbyClause = selDimensions ? `GROUP BY ${selDimensions}` : '';
     
     // Default to count if nothing selected
-    if (!selectClause) selectClause = 'COUNT(*) AS count';
+    if (!selectClause) selectClause = 'COUNT(1) AS [res_count]';
 
     let whereClause = '';
     if (filters && filters.length > 0) {
@@ -304,6 +316,181 @@ router.post('/:id/query', verifyToken, async (req, res) => {
 
   } catch (error) {
     console.error("Query Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Data Profiling / Pre-processing Report
+router.get('/:id/profile', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  const { uid, email } = req.user;
+
+  try {
+    const ownerId = await getOwnerId(uid, email);
+    const [rows] = await pool.query(
+      `SELECT file_path, file_name, mime_type FROM datasets WHERE id = ? AND owner_id = ?`,
+      [id, ownerId]
+    );
+
+    if (rows.length === 0) return res.status(404).json({ error: 'Dataset not found' });
+    const { file_path: filePath, file_name: fileName, mime_type: mimeType } = rows[0];
+
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found on server' });
+
+    // Load data
+    let data = [];
+    if (mimeType === 'text/csv' || filePath.endsWith('.csv')) {
+      data = await new Promise((resolve, reject) => {
+        const results = [];
+        fs.createReadStream(filePath)
+          .pipe(csv())
+          .on('data', (row) => results.push(row))
+          .on('end', () => resolve(results))
+          .on('error', reject);
+      });
+    } else if (mimeType.includes('spreadsheetml') || filePath.endsWith('.xlsx')) {
+      const workbook = xlsx.readFile(filePath);
+      data = xlsx.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+    } else {
+      return res.status(400).json({ error: 'Unsupported file type' });
+    }
+
+    if (!data.length) return res.json({ rows: 0, columns: [], fileName });
+
+    const totalRows = data.length;
+    const columnNames = Object.keys(data[0]);
+
+    const columns = columnNames.map(col => {
+      const values = data.map(row => row[col]);
+      const nullValues = values.filter(v => v === null || v === undefined || v === '' || String(v).trim() === '');
+      const nonNullValues = values.filter(v => v !== null && v !== undefined && v !== '' && String(v).trim() !== '');
+      const uniqueValues = [...new Set(nonNullValues.map(v => String(v)))];
+
+      // Determine type
+      const numericValues = nonNullValues.map(v => parseFloat(v)).filter(v => !isNaN(v));
+      const isNumeric = numericValues.length > nonNullValues.length * 0.8;
+      const isYear = isNumeric && numericValues.every(v => Number.isInteger(v) && v >= 1900 && v <= 2100);
+
+      let dataType = 'text';
+      let min = null, max = null, mean = null;
+
+      if (isNumeric && !isYear) {
+        dataType = 'numeric';
+        min = Math.min(...numericValues);
+        max = Math.max(...numericValues);
+        mean = numericValues.reduce((a, b) => a + b, 0) / numericValues.length;
+      } else if (isYear) {
+        dataType = 'year';
+        min = Math.min(...numericValues);
+        max = Math.max(...numericValues);
+      }
+
+      return {
+        name: col,
+        dataType,
+        totalRows,
+        nullCount: nullValues.length,
+        nullPercent: parseFloat(((nullValues.length / totalRows) * 100).toFixed(1)),
+        uniqueCount: uniqueValues.length,
+        sampleValues: uniqueValues.slice(0, 5),
+        min: min !== null ? parseFloat(min.toFixed(2)) : null,
+        max: max !== null ? parseFloat(max.toFixed(2)) : null,
+        mean: mean !== null ? parseFloat(mean.toFixed(2)) : null,
+      };
+    });
+
+    // Overall quality score: penalise columns with missing data
+    const avgNullPercent = columns.reduce((a, c) => a + c.nullPercent, 0) / columns.length;
+    const qualityScore = Math.round(100 - avgNullPercent);
+
+    res.status(200).json({
+      fileName,
+      totalRows,
+      totalColumns: columns.length,
+      qualityScore,
+      columns,
+    });
+  } catch (error) {
+    console.error('Profiling Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Download Cleaned Dataset (strips rows with any missing values)
+router.get('/:id/clean', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  const { uid, email } = req.user;
+
+  try {
+    const ownerId = await getOwnerId(uid, email);
+    const [rows] = await pool.query(
+      `SELECT file_path, file_name, mime_type FROM datasets WHERE id = ? AND owner_id = ?`,
+      [id, ownerId]
+    );
+
+    if (rows.length === 0) return res.status(404).json({ error: 'Dataset not found' });
+    const { file_path: filePath, file_name: fileName, mime_type: mimeType } = rows[0];
+
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found on server' });
+
+    // Load data
+    let data = [];
+    let headers = [];
+
+    if (mimeType === 'text/csv' || filePath.endsWith('.csv')) {
+      data = await new Promise((resolve, reject) => {
+        const results = [];
+        fs.createReadStream(filePath)
+          .pipe(csv())
+          .on('data', (row) => results.push(row))
+          .on('end', () => resolve(results))
+          .on('error', reject);
+      });
+      if (data.length > 0) headers = Object.keys(data[0]);
+    } else if (mimeType.includes('spreadsheetml') || filePath.endsWith('.xlsx')) {
+      const workbook = xlsx.readFile(filePath);
+      data = xlsx.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+      if (data.length > 0) headers = Object.keys(data[0]);
+    } else {
+      return res.status(400).json({ error: 'Unsupported file type for cleaning' });
+    }
+
+    if (!data.length) return res.status(400).json({ error: 'Dataset is empty' });
+
+    // Clean: remove rows where ANY value is null / undefined / empty string
+    const cleanedData = data.filter(row =>
+      headers.every(h => {
+        const v = row[h];
+        return v !== null && v !== undefined && String(v).trim() !== '';
+      })
+    );
+
+    const removedRows = data.length - cleanedData.length;
+
+    // Build CSV string
+    const escapeCsvValue = (v) => {
+      const str = String(v ?? '');
+      return str.includes(',') || str.includes('"') || str.includes('\n')
+        ? `"${str.replace(/"/g, '""')}"` : str;
+    };
+
+    const csvLines = [
+      headers.map(escapeCsvValue).join(','),
+      ...cleanedData.map(row => headers.map(h => escapeCsvValue(row[h])).join(','))
+    ];
+    const csvContent = csvLines.join('\n');
+
+    // Send as file download
+    const cleanName = `cleaned_${fileName.replace(/\.[^.]+$/, '.csv')}`;
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${cleanName}"`);
+    res.setHeader('X-Removed-Rows', String(removedRows));
+    res.setHeader('X-Total-Rows', String(data.length));
+    res.setHeader('X-Clean-Rows', String(cleanedData.length));
+    res.status(200).send(csvContent);
+
+  } catch (error) {
+    console.error('Clean Download Error:', error);
     res.status(500).json({ error: error.message });
   }
 });

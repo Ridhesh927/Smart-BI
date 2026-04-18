@@ -2,7 +2,7 @@ import React from 'react';
 import { Layers, ChevronDown, Search, Plus } from "lucide-react";
 import { showMeCharts } from './constants';
 
-export function ShowMePanel({ 
+export const ShowMePanel = React.memo(({ 
   showShowMe, 
   setShowShowMe, 
   activeSheet, 
@@ -10,7 +10,7 @@ export function ShowMePanel({
   hoveredChart, 
   setHoveredChart, 
   handleAutoAiGenerate 
-}) {
+}) => {
   if (!showShowMe) return null;
 
   return (
@@ -85,4 +85,4 @@ export function ShowMePanel({
       </div>
     </div>
   );
-}
+});

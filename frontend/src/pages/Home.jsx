@@ -1,40 +1,79 @@
 import { Link } from "react-router-dom";
-import { useState, useEffect } from "react";
-import { BarChart3, Database, Users, Plus, MoreVertical, TrendingUp, Clock, FileWarning } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { BarChart3, Database, Users, Plus, MoreVertical, TrendingUp, Clock, FileWarning, Edit2, Trash2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { RenameModal, DeleteModal } from "../components/Modals/DashboardModals";
 
 export default function Home() {
   const { user } = useAuth();
-
+  
   const [dashboards, setDashboards] = useState([]);
   const [datasetsCount, setDatasetsCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [activeMenu, setActiveMenu] = useState(null);
+  const [renameTarget, setRenameTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const token = await user?.getIdToken();
+      if (!token) return;
+
+      const headers = { Authorization: `Bearer ${token}` };
+      const dashRes = await fetch(`${import.meta.env.VITE_API_URL}/dashboards`, { headers });
+      const dashData = dashRes.ok ? await dashRes.json() : [];
+      setDashboards(dashData);
+
+      const dataRes = await fetch(`${import.meta.env.VITE_API_URL}/datasets`, { headers });
+      const datasetData = dataRes.ok ? await dataRes.json() : [];
+      setDatasetsCount(datasetData.length);
+    } catch (err) {
+      console.error("Error fetching data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = await user?.getIdToken();
-        if (!token) return;
+    if (user) fetchData();
+  }, [user, fetchData]);
 
-        const headers = { Authorization: `Bearer ${token}` };
-        
-        // Fetch real dashboards 
-        const dashRes = await fetch(`${import.meta.env.VITE_API_URL}/dashboards`, { headers });
-        const dashData = dashRes.ok ? await dashRes.json() : [];
-        setDashboards(dashData);
+  const handleRename = async (id, newTitle) => {
+    try {
+      const token = await user?.getIdToken();
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/dashboards/${id}`, {
+        method: 'PUT',
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ title: newTitle })
+      });
 
-        const dataRes = await fetch(`${import.meta.env.VITE_API_URL}/datasets`, { headers });
-        const datasetData = dataRes.ok ? await dataRes.json() : [];
-        setDatasetsCount(datasetData.length);
-
-      } catch (err) {
-        console.error("Error fetching data:", err);
-      } finally {
-        setLoading(false);
+      if (response.ok) {
+        setDashboards(prev => prev.map(d => d.id === id ? { ...d, title: newTitle } : d));
       }
-    };
-    fetchData();
-  }, [user]);
+    } catch (err) {
+      console.error("Rename failed:", err);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      const token = await user?.getIdToken();
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/dashboards/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        setDashboards(prev => prev.filter(d => d.id !== id));
+      }
+    } catch (err) {
+      console.error("Delete failed:", err);
+    }
+  };
 
 
 
@@ -107,16 +146,39 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="p-5">
-                  <h3 className="font-bold text-white mb-1 truncate">{dash.title}</h3>
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                    <Clock size={12} />
-                    Edited {dateStr}
-                  </div>
+                <h3 className="font-bold text-white mb-1 truncate">{dash.title}</h3>
+                <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                  <Clock size={12} />
+                  Edited {dateStr}
                 </div>
-                <button className="absolute top-3 right-3 text-white/70 hover:text-white bg-black/20 hover:bg-black/40 rounded-md p-1 backdrop-blur-sm transition-colors opacity-0 group-hover:opacity-100">
+              </div>
+              
+              <div className="absolute top-3 right-3 flex flex-col items-end gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                <button 
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveMenu(activeMenu === dash.id ? null : dash.id); }}
+                  className="bg-black/40 hover:bg-black/60 rounded-md p-1.5 backdrop-blur-sm text-white/70 hover:text-white transition-all shadow-lg"
+                >
                   <MoreVertical size={16} />
                 </button>
-              </Link>
+                
+                {activeMenu === dash.id && (
+                  <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl py-2 w-32 animate-in zoom-in-95 duration-200 z-50">
+                    <button 
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setRenameTarget(dash); setActiveMenu(null); }}
+                      className="w-full text-left px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 hover:text-white flex items-center gap-2"
+                    >
+                      <Edit2 size={12} /> Rename
+                    </button>
+                    <button 
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteTarget(dash); setActiveMenu(null); }}
+                      className="w-full text-left px-4 py-2 text-xs text-red-400 hover:bg-red-400/10 flex items-center gap-2"
+                    >
+                      <Trash2 size={12} /> Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            </Link>
             )
           })}
           
@@ -128,6 +190,19 @@ export default function Home() {
           </Link>
         </div>
       </div>
+
+      <RenameModal 
+        isOpen={!!renameTarget} 
+        onClose={() => setRenameTarget(null)} 
+        currentTitle={renameTarget?.title} 
+        onRename={(newTitle) => handleRename(renameTarget.id, newTitle)} 
+      />
+
+      <DeleteModal 
+        isOpen={!!deleteTarget} 
+        onClose={() => setDeleteTarget(null)} 
+        onDelete={() => handleDelete(deleteTarget.id)} 
+      />
     </div>
   );
 }

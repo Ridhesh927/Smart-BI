@@ -1,13 +1,22 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { UploadCloud, FileText, Search, Filter, MoreHorizontal, FileSpreadsheet, Trash2, Loader2, Download, ExternalLink } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { UploadCloud, FileText, Search, Filter, FileSpreadsheet, Trash2, Loader2, ExternalLink, BarChart2, Download } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { DataProfilePanel } from "../components/DataProfilePanel";
+import { DeleteModal, SuccessModal } from "../components/Modals/DashboardModals";
 
 export default function Datasets() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [profileDataset, setProfileDataset] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [datasets, setDatasets] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState(null);
+  const [deleteTargetId, setDeleteTargetId] = useState(null);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const fileInputRef = useRef(null);
 
@@ -35,6 +44,36 @@ export default function Datasets() {
     if (user) fetchDatasets();
   }, [user, fetchDatasets]);
 
+  const handleDownloadClean = async (ds) => {
+    try {
+      setDownloadingId(ds.id);
+      const token = await user?.getIdToken();
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/datasets/${ds.id}/clean`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Download failed');
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cleaned_${ds.file_name.replace(/\.[^.]+$/, '.csv')}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setErrorMessage('Download error: ' + err.message);
+      setIsErrorModalOpen(true);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) handleUpload(file);
@@ -61,31 +100,35 @@ export default function Datasets() {
       if (response.ok) {
         fetchDatasets();
       } else {
-        alert("Upload failed: " + result.error);
+        setErrorMessage("Upload failed: " + result.error);
+        setIsErrorModalOpen(true);
       }
     } catch (err) {
-      console.error("Upload error:", err);
+      setErrorMessage("Upload error: " + err.message);
+      setIsErrorModalOpen(true);
     } finally {
       setUploading(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this dataset?")) return;
+  const handleDelete = async () => {
+    if (!deleteTargetId) return;
 
     try {
       const token = await user?.getIdToken();
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/datasets/${id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/datasets/${deleteTargetId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       if (response.ok) {
-        setDatasets(datasets.filter(ds => ds.id !== id));
+        setDatasets(datasets.filter(ds => ds.id !== deleteTargetId));
       }
     } catch (err) {
       console.error("Delete error:", err);
+    } finally {
+      setDeleteTargetId(null);
     }
   };
 
@@ -235,11 +278,30 @@ export default function Datasets() {
                     <td className="p-6 text-xs text-slate-500">{new Date(ds.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                     <td className="p-6 text-right">
                       <div className="flex justify-end gap-2">
-                        <button className="p-2.5 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-xl transition-all" title="Preview">
+                        <button 
+                          onClick={() => handleDownloadClean(ds)}
+                          disabled={downloadingId === ds.id}
+                          className="p-2.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-400/10 rounded-xl transition-all disabled:opacity-50" 
+                          title="Download Cleaned CSV"
+                        >
+                          {downloadingId === ds.id ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+                        </button>
+                        <button 
+                          onClick={() => setProfileDataset(ds)}
+                          className="p-2.5 text-slate-400 hover:text-purple-400 hover:bg-purple-400/10 rounded-xl transition-all" 
+                          title="Data Profile Report"
+                        >
+                          <BarChart2 size={18} />
+                        </button>
+                        <button 
+                          onClick={() => navigate(`/studio/new?dataset=${ds.id}`)}
+                          className="p-2.5 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-xl transition-all" 
+                          title="Open in Studio"
+                        >
                           <ExternalLink size={18} />
                         </button>
                         <button 
-                          onClick={() => handleDelete(ds.id)}
+                          onClick={() => setDeleteTargetId(ds.id)}
                           className="p-2.5 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all" 
                           title="Delete"
                         >
@@ -254,6 +316,27 @@ export default function Datasets() {
           )}
         </div>
       </div>
+      {profileDataset && (
+        <DataProfilePanel
+          datasetId={profileDataset.id}
+          datasetName={profileDataset.file_name}
+          user={user}
+          onClose={() => setProfileDataset(null)}
+        />
+      )}
+
+      <DeleteModal 
+        isOpen={!!deleteTargetId} 
+        onClose={() => setDeleteTargetId(null)} 
+        onDelete={handleDelete}
+        message="Are you sure you want to delete this dataset?"
+      />
+
+      <SuccessModal 
+        isOpen={isErrorModalOpen} 
+        onClose={() => setIsErrorModalOpen(false)} 
+        message={errorMessage}
+      />
     </div>
   );
 }

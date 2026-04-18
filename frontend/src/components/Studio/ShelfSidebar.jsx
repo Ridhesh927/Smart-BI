@@ -1,16 +1,16 @@
 import React from 'react';
 import { X, ChevronDown, Palette, Maximize, Type, Share2, MessageSquare, Hash } from "lucide-react";
-import { DroppableShelf } from './DndHelpers';
+import { DroppableShelf, DraggablePill } from './DndHelpers';
 import { MARK_TYPES } from './constants';
 
-export function ShelfSidebar({ 
+export const ShelfSidebar = React.memo(({ 
   activeSheet, 
   removePill, 
   isMarksOpen, 
   setIsMarksOpen, 
   currentMarkType, 
   updateActiveSheet 
-}) {
+}) => {
   return (
     <div className="w-60 border-r border-slate-800 bg-slate-900/50 flex flex-col shrink-0 overflow-y-auto slim-scrollbar">
       
@@ -22,10 +22,12 @@ export function ShelfSidebar({
              <span className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-600 pointer-events-none">Drop here</span>
            )}
            {activeSheet.shelves.pages.map(pill => (
-             <div key={pill.pillId} className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold ${pill.type === 'measure' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-blue-500/10 border border-blue-500/20 text-blue-400'}`}>
-               {pill.displayName}
-               <button onClick={() => removePill('pages', pill.pillId)} className="hover:text-white transition-colors"><X size={10} /></button>
-             </div>
+             <DraggablePill key={pill.pillId} pill={pill} sourceShelf="pages">
+               <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold ${pill.type === 'measure' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-blue-500/10 border border-blue-500/20 text-blue-400'}`}>
+                 {pill.displayName}
+                 <button onPointerDown={(e) => e.stopPropagation()} onClick={() => removePill('pages', pill.pillId)} className="hover:text-white transition-colors"><X size={10} /></button>
+               </div>
+             </DraggablePill>
            ))}
         </DroppableShelf>
       </div>
@@ -38,10 +40,12 @@ export function ShelfSidebar({
              <span className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-600 pointer-events-none">Drop here</span>
            )}
            {activeSheet.shelves.filters.map(pill => (
-             <div key={pill.pillId} className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold ${pill.type === 'measure' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-blue-500/10 border border-blue-500/20 text-blue-400'}`}>
-               {pill.displayName}
-               <button onClick={() => removePill('filters', pill.pillId)} className="hover:text-white transition-colors"><X size={10} /></button>
-             </div>
+             <DraggablePill key={pill.pillId} pill={pill} sourceShelf="filters">
+               <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold ${pill.type === 'measure' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-blue-500/10 border border-blue-500/20 text-blue-400'}`}>
+                 {pill.displayName}
+                 <button onPointerDown={(e) => e.stopPropagation()} onClick={() => removePill('filters', pill.pillId)} className="hover:text-white transition-colors"><X size={10} /></button>
+               </div>
+             </DraggablePill>
            ))}
         </DroppableShelf>
       </div>
@@ -118,17 +122,19 @@ export function ShelfSidebar({
               <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-600 pointer-events-none">Drop here</div>
             )}
             {activeSheet.shelves.marks.map(pill => (
-               <div key={pill.pillId} className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-full text-xs font-bold shadow-sm ${pill.type === 'measure' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-blue-500/10 border border-blue-500/20 text-blue-400'}`}>
-                  <div className="flex items-center gap-2 truncate">
-                    {pill.type === 'measure' ? <Hash size={12} /> : <Type size={12} />}
-                    <span className="truncate">{pill.displayName}</span>
-                  </div>
-                  <button onClick={() => removePill('marks', pill.pillId)} className="hover:text-white transition-colors"><X size={12} /></button>
-               </div>
+               <DraggablePill key={pill.pillId} pill={pill} sourceShelf="marks">
+                 <div className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-full text-xs font-bold shadow-sm ${pill.type === 'measure' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-blue-500/10 border border-blue-500/20 text-blue-400'}`}>
+                   <div className="flex items-center gap-2 truncate">
+                     {pill.type === 'measure' ? <Hash size={12} /> : <Type size={12} />}
+                     <span className="truncate">{pill.displayName}</span>
+                   </div>
+                   <button onPointerDown={(e) => e.stopPropagation()} onClick={() => removePill('marks', pill.pillId)} className="hover:text-white transition-colors"><X size={12} /></button>
+                 </div>
+               </DraggablePill>
             ))}
           </DroppableShelf>
         </div>
       </div>
     </div>
   );
-}
+});

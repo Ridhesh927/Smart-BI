@@ -6,6 +6,7 @@ import Register from "./pages/Register";
 import Home from "./pages/Home";
 import Datasets from "./pages/Datasets";
 import Studio from "./pages/Studio";
+import DemoStudio from "./pages/DemoStudio";
 import Settings from "./pages/Settings";
 import AppLayout from "./components/AppLayout";
 
@@ -19,8 +20,9 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           
-          {/* Protected Routes directly rendering Studio (no sidebar/topnav for studio usually, or we can use Layout, let's keep it full screen) */}
+          {/* Protected Routes directly rendering Studio */}
           <Route path="/studio/:id" element={<Studio />} />
+          <Route path="/studio/demo" element={<DemoStudio />} />
 
           {/* Protected Routes with Sidebar/Topnav */}
           <Route element={<AppLayout />}>

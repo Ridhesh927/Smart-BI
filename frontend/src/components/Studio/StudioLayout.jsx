@@ -1,9 +1,9 @@
 import React from 'react';
 import { Link } from "react-router-dom";
-import { ChevronLeft, Play, Save, Layers, Columns3, Rows3, X } from "lucide-react";
-import { DroppableShelf } from './DndHelpers';
+import { ChevronLeft, Play, Save, Layers, Columns3, Rows3, X, Edit3 } from "lucide-react";
+import { DroppableShelf, DraggablePill } from './DndHelpers';
 
-export function StudioHeader({ id, handleSave, saveLoading, showShowMe, setShowShowMe }) {
+export function StudioHeader({ id, title, onRename, handleSave, saveLoading, showShowMe, setShowShowMe }) {
   return (
     <header className="h-16 border-b border-slate-800 bg-slate-900 px-4 flex items-center justify-between shrink-0">
       <div className="flex items-center gap-4">
@@ -11,9 +11,17 @@ export function StudioHeader({ id, handleSave, saveLoading, showShowMe, setShowS
           <ChevronLeft size={20} />
         </Link>
         <div className="h-6 w-px bg-slate-800"></div>
-        <div>
-          <h1 className="text-sm font-medium text-white">{id === 'new' ? 'Untitled Dashboard' : `Dashboard #${id}`}</h1>
-          <p className="text-xs text-slate-500">Unsaved changes</p>
+        <div 
+          onClick={onRename}
+          className="group cursor-pointer hover:bg-slate-800 px-3 py-1 rounded-lg transition-all border border-transparent hover:border-slate-700"
+        >
+          <div className="flex items-center gap-2">
+            <h1 className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">
+              {title || (id === 'new' ? 'Untitled Dashboard' : `Dashboard #${id}`)}
+            </h1>
+            <Edit3 size={12} className="text-slate-600 group-hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-all" />
+          </div>
+          <p className="text-[10px] text-slate-500 font-medium tracking-tight">Click to rename</p>
         </div>
       </div>
 
@@ -59,13 +67,15 @@ export function CanvasHeader({ activeSheet, removePill }) {
           <span className="text-xs font-medium">Columns</span>
         </div>
         <DroppableShelf id="columns" className="flex-1 min-h-[32px] bg-slate-950/50 border border-slate-800 flex items-center px-1.5 gap-2 overflow-x-auto overflow-y-hidden">
-           {activeSheet.shelves.columns.map(pill => (
-             <div key={pill.pillId} className={`flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold shadow-sm shrink-0 ${pill.type === 'measure' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-blue-500/10 border border-blue-500/20 text-blue-400'}`}>
+          {activeSheet.shelves.columns.map(pill => (
+            <DraggablePill key={pill.pillId} pill={pill} sourceShelf="columns">
+              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold shadow-sm shrink-0 ${pill.type === 'measure' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-blue-500/10 border border-blue-500/20 text-blue-400'}`}>
                 <span className="truncate">{pill.displayName}</span>
-                <button onClick={() => removePill('columns', pill.pillId)} className="hover:text-white transition-colors"><X size={10} /></button>
-             </div>
-           ))}
-           {activeSheet.shelves.columns.length === 0 && <div className="text-[10px] text-slate-700 italic ml-2">Drop columns here</div>}
+                <button onPointerDown={(e) => e.stopPropagation()} onClick={() => removePill('columns', pill.pillId)} className="hover:text-white transition-colors"><X size={10} /></button>
+              </div>
+            </DraggablePill>
+          ))}
+          {activeSheet.shelves.columns.length === 0 && <div className="text-[10px] text-slate-700 italic ml-2">Drop columns here</div>}
         </DroppableShelf>
       </div>
 
@@ -76,13 +86,15 @@ export function CanvasHeader({ activeSheet, removePill }) {
           <span className="text-xs font-medium">Rows</span>
         </div>
         <DroppableShelf id="rows" className="flex-1 min-h-[32px] bg-slate-950/50 border border-slate-800 flex items-center px-1.5 gap-2 overflow-x-auto overflow-y-hidden">
-           {activeSheet.shelves.rows.map(pill => (
-             <div key={pill.pillId} className={`flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold shadow-sm shrink-0 ${pill.type === 'measure' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-blue-500/10 border border-blue-500/20 text-blue-400'}`}>
+          {activeSheet.shelves.rows.map(pill => (
+            <DraggablePill key={pill.pillId} pill={pill} sourceShelf="rows">
+              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold shadow-sm shrink-0 ${pill.type === 'measure' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-blue-500/10 border border-blue-500/20 text-blue-400'}`}>
                 <span className="truncate">{pill.displayName}</span>
-                <button onClick={() => removePill('rows', pill.pillId)} className="hover:text-white transition-colors"><X size={10} /></button>
-             </div>
-           ))}
-           {activeSheet.shelves.rows.length === 0 && <div className="text-[10px] text-slate-700 italic ml-2">Drop rows here</div>}
+                <button onPointerDown={(e) => e.stopPropagation()} onClick={() => removePill('rows', pill.pillId)} className="hover:text-white transition-colors"><X size={10} /></button>
+              </div>
+            </DraggablePill>
+          ))}
+          {activeSheet.shelves.rows.length === 0 && <div className="text-[10px] text-slate-700 italic ml-2">Drop rows here</div>}
         </DroppableShelf>
       </div>
     </div>
