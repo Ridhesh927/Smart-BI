@@ -8,7 +8,6 @@ export const DataSidebar = React.memo(({
   setActiveLeftTab, 
   searchQuery, 
   setSearchQuery, 
-  loading, 
   dataFields, 
   aiPrompt, 
   setAiPrompt, 
@@ -19,87 +18,79 @@ export const DataSidebar = React.memo(({
   aiSuggestion
 }) => {
   return (
-    <div className="w-72 border-r border-slate-800 bg-slate-900 flex flex-col shrink-0 overflow-hidden">
-      <div className="flex-1 flex flex-col min-h-0">
-        {/* Left Tabs - Data & AI Switcher */}
-        <div className="flex border-b border-slate-800 shrink-0">
-          <button 
-            onClick={() => setActiveLeftTab('data')}
-            className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${activeLeftTab === 'data' ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-400/5' : 'text-slate-500 hover:text-slate-300'}`}
-          >
-            <Database size={14} /> Data
-          </button>
-          <button 
-            onClick={() => setActiveLeftTab('ai')}
-            className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${activeLeftTab === 'ai' ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-400/5' : 'text-slate-500 hover:text-slate-300'}`}
-          >
-            <Layers size={14} /> AI
-          </button>
-          <button 
-            onClick={() => setActiveLeftTab('quality')}
-            className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${activeLeftTab === 'quality' ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-400/5' : 'text-slate-500 hover:text-slate-300'}`}
-          >
-            <BarChart3 size={14} /> Quality
-          </button>
+    <aside className="w-72 bg-[var(--bg-sidebar)] border-r border-[var(--border)] flex flex-col theme-transition">
+      <div className="p-4 border-b border-[var(--border)] bg-[var(--bg-sidebar)]/50">
+        <div className="flex bg-[var(--bg-main)] p-1 rounded-xl border border-[var(--border)] mb-4">
+          {[
+            { id: 'data', icon: Database, label: 'Data' },
+            { id: 'quality', icon: Table, label: 'Quality' },
+            { id: 'ai', icon: BarChart3, label: 'AI Assistant' }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveLeftTab(tab.id)}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                activeLeftTab === tab.id 
+                  ? 'bg-[var(--primary)] text-[var(--bg-main)] shadow-lg' 
+                  : 'text-[var(--text-muted)] hover:text-white hover:bg-[var(--bg-surface)]'
+              }`}
+            >
+              <tab.icon size={14} />
+              <span className="hidden xl:inline">{tab.label}</span>
+            </button>
+          ))}
         </div>
 
+        {activeLeftTab === 'data' && (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" size={14} />
+            <input 
+              type="text" 
+              placeholder="Search fields..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl pl-9 pr-4 py-2 text-xs text-white outline-none focus:ring-1 focus:ring-[var(--primary)] transition-all"
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-sidebar)]/30">
         {activeLeftTab === 'data' ? (
-          <div className="flex-1 flex flex-col min-h-0 animate-in fade-in duration-300">
-            {/* Search */}
-            <div className="p-4 shrink-0">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-                <input 
-                  type="text" 
-                  placeholder="Search fields..." 
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* Source Label */}
-            <div className="px-4 py-2 bg-slate-800/20 text-xs font-medium text-slate-500 flex items-center gap-2 border-y border-slate-800/50">
-              <Table size={12} /> {loading ? 'Loading schema...' : (dataFields.dimensions.length > 0 ? 'Active Dataset' : 'No Data Connected')}
-            </div>
-
-            {/* Fields List */}
-            <div className="flex-1 overflow-y-auto px-2 pb-4 slim-scrollbar pt-2">
-              <div className="mb-6">
-                <h3 className="px-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                  Dimensions
-                </h3>
-                
-                {/* Dimensions */}
-                <div className="space-y-0.5">
-                  {dataFields.dimensions
-                    .filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                    .map((field) => (
-                      <DraggableField key={field.name} field={field} />
-                  ))}
-                </div>
-
-                <div className="h-px bg-slate-800/50 mt-6 mb-4 mx-2"></div>
-
-                <h3 className="px-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                  Measures
-                </h3>
-
-                {/* Measures */}
-                <div className="space-y-0.5">
-                  {dataFields.measures
-                    .filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                    .map((field) => (
-                      <DraggableField key={field.name} field={field} />
-                  ))}
-                </div>
-              </div>
+          <div className="flex-1 overflow-y-auto px-2 pb-4 slim-scrollbar pt-2">
+            <div className="mb-6">
+              <h3 className="px-2 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest mb-2 font-mono opacity-80">
+                Dimensions
+              </h3>
               
-              <button className="w-full mt-2 flex items-center justify-center gap-2 p-2 text-[10px] font-bold uppercase tracking-widest border border-dashed border-slate-700 rounded-lg text-slate-500 hover:text-white hover:border-slate-500 hover:bg-slate-800 transition-all">
-                <Plus size={12} /> Add Dataset
-              </button>
+              {/* Dimensions */}
+              <div className="space-y-0.5">
+                {dataFields.dimensions
+                  .filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .map((field) => (
+                    <DraggableField key={field.name} field={field} />
+                ))}
+              </div>
+
+              <div className="h-px bg-[var(--border)]/50 mt-6 mb-4 mx-2"></div>
+
+              <h3 className="px-2 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest mb-2 font-mono opacity-80">
+                Measures
+              </h3>
+
+              {/* Measures */}
+              <div className="space-y-0.5">
+                {dataFields.measures
+                  .filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .map((field) => (
+                    <DraggableField key={field.name} field={field} />
+                ))}
+              </div>
             </div>
+            
+            <button className="w-full mt-2 flex items-center justify-center gap-2 p-3 text-[10px] font-bold uppercase tracking-widest border border-dashed border-[var(--border)] rounded-xl text-[var(--text-muted)] hover:text-white hover:border-[var(--primary)]/50 hover:bg-[var(--bg-surface)] transition-all active:scale-95 group">
+              <Plus size={14} className="group-hover:scale-110 transition-transform" /> Add Dataset
+            </button>
           </div>
         ) : activeLeftTab === 'quality' ? (
           <div className="flex-1 min-h-0 animate-in fade-in duration-300 overflow-hidden">
@@ -111,68 +102,71 @@ export const DataSidebar = React.memo(({
             />
           </div>
         ) : (
-          <div className="flex-1 p-4 animate-in slide-in-from-left-4 duration-300 overflow-y-auto">
-            <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-5 shadow-2xl">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
+          <div className="flex-1 p-4 animate-in slide-in-from-left-4 duration-300 overflow-y-auto custom-scrollbar">
+            <div className="bg-[var(--bg-main)]/50 border border-[var(--border)] rounded-2xl p-5 shadow-2xl relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                <BarChart3 size={80} />
+              </div>
+              <div className="flex items-center gap-3 mb-6 relative z-10">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-hover)] flex items-center justify-center text-[var(--bg-main)] shadow-lg shadow-[var(--primary)]/30">
                   <Layers size={20} />
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-white">Smart Assistant</h3>
-                  <p className="text-[10px] text-slate-500">Natural language chart generation</p>
+                  <p className="text-[10px] text-[var(--text-muted)]">Natural language chart generation</p>
                 </div>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-4 relative z-10">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Prompt</label>
+                  <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest ml-1">Prompt</label>
                   <textarea 
                     value={aiPrompt}
                     onChange={(e) => setAiPrompt(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white outline-none resize-none focus:ring-1 focus:ring-blue-500 h-32 transition-all" 
+                    className="w-full bg-[var(--bg-sidebar)] border border-[var(--border)] rounded-xl px-4 py-3 text-xs text-white outline-none resize-none focus:ring-1 focus:ring-[var(--primary)] h-32 transition-all shadow-inner" 
                     placeholder="e.g. Suggest the cleanest chart for this dataset and tell me which fields and filters will make it clear"
                   />
                 </div>
                 <button 
                   onClick={() => handleAiGenerate()}
                   disabled={isAiGenerating || !aiPrompt.trim()}
-                  className={`w-full py-3 rounded-xl text-xs font-bold transition-all transform active:scale-95 shadow-lg flex items-center justify-center gap-2 ${isAiGenerating ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20 shadow-lg cursor-pointer'}`}
+                  className={`w-full py-3 rounded-xl text-xs font-bold transition-all transform active:scale-95 shadow-lg flex items-center justify-center gap-2 ${isAiGenerating ? 'bg-[var(--bg-surface)] text-[var(--text-muted)] cursor-not-allowed' : 'bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--bg-main)] shadow-[var(--primary)]/20 shadow-lg cursor-pointer'}`}
                 >
                   {isAiGenerating ? (
                     <>
-                      <div className="w-3 h-3 border-2 border-slate-500 border-t-white rounded-full animate-spin"></div>
+                      <div className="w-3 h-3 border-2 border-[var(--text-muted)] border-t-white rounded-full animate-spin"></div>
                       Generating...
                     </>
                   ) : 'Generate Visualization'}
                 </button>
                 
-                <div className="pt-4 border-t border-slate-800 mt-2">
-                   <p className="text-[9px] text-slate-500 italic text-center leading-relaxed">
+                <div className="pt-4 border-t border-[var(--border)] mt-2">
+                   <p className="text-[9px] text-[var(--text-muted)] italic text-center leading-relaxed opacity-60">
                      The assistant will choose cleaner fields for the shelves and explain which filters can reduce clutter.
                    </p>
                 </div>
 
                 {aiSuggestion && (
-                  <div className="mt-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 space-y-4">
+                  <div className="mt-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-sidebar)]/70 p-4 space-y-4 animate-in slide-in-from-bottom-2 duration-300">
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-1">Recommendation</p>
-                      <p className="text-xs text-slate-200 leading-relaxed">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--primary)] mb-1">Recommendation</p>
+                      <p className="text-xs text-[var(--text-main)] leading-relaxed">
                         {aiSuggestion.summary || `Using a ${aiSuggestion.chartType} chart for ${aiSuggestion.title}.`}
                       </p>
                     </div>
 
                     {aiSuggestion.recommendedFilters?.length > 0 && (
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Suggested Filters</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Suggested Filters</p>
                         <div className="space-y-2">
                           {aiSuggestion.recommendedFilters.map((item, index) => (
-                            <div key={`${item.field}-${index}`} className="rounded-xl border border-slate-800 bg-slate-950/80 p-3">
+                            <div key={`${item.field}-${index}`} className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)]/80 p-3">
                               <div className="flex items-center justify-between gap-3">
                                 <span className="text-xs font-semibold text-white">{item.field}</span>
-                                <span className={`text-[9px] uppercase tracking-widest font-bold ${item.priority === 'high' ? 'text-amber-400' : 'text-slate-500'}`}>
+                                <span className={`text-[9px] uppercase tracking-widest font-bold ${item.priority === 'high' ? 'text-rose-400' : 'text-[var(--text-muted)]'}`}>
                                   {item.priority || 'medium'}
                                 </span>
                               </div>
-                              <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{item.reason}</p>
+                              <p className="text-[11px] text-[var(--text-muted)] mt-1 leading-relaxed">{item.reason}</p>
                             </div>
                           ))}
                         </div>
@@ -181,7 +175,7 @@ export const DataSidebar = React.memo(({
 
                     {aiSuggestion.avoidedFields?.length > 0 && (
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Avoid For Clarity</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Avoid For Clarity</p>
                         <div className="space-y-2">
                           {aiSuggestion.avoidedFields.map((item, index) => (
                             <div key={`${item.field}-${index}`} className="rounded-xl border border-rose-500/10 bg-rose-500/5 p-3">
@@ -195,10 +189,10 @@ export const DataSidebar = React.memo(({
 
                     {aiSuggestion.tips?.length > 0 && (
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Make It Cleaner</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Make It Cleaner</p>
                         <div className="space-y-2">
                           {aiSuggestion.tips.map((tip, index) => (
-                            <div key={`${tip}-${index}`} className="text-[11px] text-slate-300 leading-relaxed rounded-lg bg-slate-950/70 border border-slate-800 px-3 py-2">
+                            <div key={`${tip}-${index}`} className="text-[11px] text-[var(--text-main)]/80 leading-relaxed rounded-lg bg-[var(--bg-main)]/70 border border-[var(--border)] px-3 py-2">
                               {tip}
                             </div>
                           ))}
@@ -212,6 +206,6 @@ export const DataSidebar = React.memo(({
           </div>
         )}
       </div>
-    </div>
+    </aside>
   );
 });

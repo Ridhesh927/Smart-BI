@@ -78,21 +78,21 @@ export default function Home() {
 
 
   const stats = [
-    { label: "Total Dashboards", value: dashboards.length.toString(), icon: <BarChart3 size={24} className="text-blue-500" />, trend: "Updated recently" },
-    { label: "Connected Datasets", value: datasetsCount.toString(), icon: <Database size={24} className="text-purple-500" />, trend: "Active sources" },
+    { label: "Total Dashboards", value: dashboards.length.toString(), icon: <BarChart3 size={24} className="text-[var(--primary)]" />, trend: "Updated recently" },
+    { label: "Connected Datasets", value: datasetsCount.toString(), icon: <Database size={24} className="text-[var(--accent)]" />, trend: "Active sources" },
     { label: "Team Members", value: "1", icon: <Users size={24} className="text-emerald-500" />, trend: "Just you" },
   ];
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-8 theme-transition">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">Welcome back, {user?.displayName?.split(' ')[0] || 'User'} 👋</h1>
-          <p className="text-slate-400">Here's what's happening with your data today.</p>
+          <p className="text-[var(--text-muted)]">Here's what's happening with your data today.</p>
         </div>
         <Link 
           to="/studio/new"
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-blue-500/20"
+          className="flex items-center gap-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--bg-main)] px-5 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-[var(--primary)]/20"
         >
           <Plus size={20} />
           New Dashboard
@@ -101,16 +101,16 @@ export default function Home() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {stats.map((stat, i) => (
-          <div key={i} className="glass p-6 rounded-2xl border border-slate-800 flex flex-col hover:-translate-y-1 transition-transform duration-300">
+          <div key={i} className="bg-[var(--bg-sidebar)]/50 p-6 rounded-2xl border border-[var(--border)] flex flex-col hover:-translate-y-1 transition-transform duration-300">
             <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-xl bg-slate-800/80 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-[var(--bg-main)]/80 flex items-center justify-center">
                 {stat.icon}
               </div>
-              <TrendingUp size={20} className="text-slate-500" />
+              <TrendingUp size={20} className="text-[var(--text-muted)]" />
             </div>
-            <h3 className="text-slate-400 text-sm font-medium">{stat.label}</h3>
+            <h3 className="text-[var(--text-muted)] text-sm font-medium">{stat.label}</h3>
             <div className="text-3xl font-bold text-white mt-1 mb-2">{stat.value}</div>
-            <p className="text-xs text-slate-500">{stat.trend}</p>
+            <p className="text-xs text-[var(--text-muted)] opacity-60">{stat.trend}</p>
           </div>
         ))}
       </div>
@@ -118,36 +118,41 @@ export default function Home() {
       <div>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-white">Recent Dashboards</h2>
-          <Link to="/studio" className="text-sm text-blue-400 hover:text-blue-300 font-medium">View all</Link>
+          <Link to="/studio" className="text-sm text-[var(--primary)] hover:text-[var(--primary-hover)] font-medium">View all</Link>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {dashboards.length === 0 && !loading && (
-            <div className="col-span-full mb-4 p-8 glass rounded-2xl border-2 border-dashed border-slate-700 flex flex-col items-center justify-center text-center">
-              <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mb-4">
-                 <FileWarning className="text-blue-400" size={32} />
+            <div className="col-span-full mb-4 p-8 bg-[var(--bg-sidebar)]/30 rounded-2xl border-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center text-center">
+              <div className="w-16 h-16 bg-[var(--primary)]/10 rounded-full flex items-center justify-center mb-4">
+                 <FileWarning className="text-[var(--primary)]" size={32} />
               </div>
               <h3 className="text-xl font-bold text-white mb-2">No dashboards found</h3>
-              <p className="text-slate-400 max-w-md">You haven't created any dashboards yet. Start by building your first interactive workspace.</p>
+              <p className="text-[var(--text-muted)] max-w-md">You haven't created any dashboards yet. Start by building your first interactive workspace.</p>
             </div>
           )}
 
           {dashboards.map((dash, idx) => {
-            const colors = ["from-blue-500 to-cyan-400", "from-purple-500 to-indigo-500", "from-emerald-400 to-teal-500", "from-orange-400 to-rose-400"];
+            const colors = [
+              "from-[var(--primary)] to-[var(--accent)]", 
+              "from-[var(--accent)] to-[var(--primary)]", 
+              "from-emerald-400 to-teal-500", 
+              "from-orange-400 to-rose-400"
+            ];
             const color = colors[idx % colors.length];
             // format date
             const dateStr = dash.updated_at ? new Date(dash.updated_at).toLocaleDateString() : 'Just now';
 
             return (
-              <Link key={dash.id} to={`/studio/${dash.id}`} className="group relative glass rounded-2xl border border-slate-800 overflow-hidden hover:border-slate-600 transition-all">
-                <div className={`h-32 bg-gradient-to-br ${color} opacity-80 group-hover:opacity-100 transition-opacity p-4 flex items-end justify-between`}>
-                  <div className="w-full h-1/2 bg-black/20 backdrop-blur-sm rounded-lg flex items-center justify-center text-white/50 group-hover:text-white/80 transition-colors">
+              <Link key={dash.id} to={`/studio/${dash.id}`} className="group relative bg-[var(--bg-sidebar)]/50 rounded-2xl border border-[var(--border)] overflow-hidden hover:border-[var(--primary)]/50 transition-all shadow-md">
+                <div className={`h-32 bg-gradient-to-br ${color} opacity-60 group-hover:opacity-80 transition-opacity p-4 flex items-end justify-between`}>
+                  <div className="w-full h-1/2 bg-[var(--bg-main)]/40 backdrop-blur-sm rounded-lg flex items-center justify-center text-white/50 group-hover:text-white/80 transition-colors">
                     <BarChart3 size={32} />
                   </div>
                 </div>
                 <div className="p-5">
                 <h3 className="font-bold text-white mb-1 truncate">{dash.title}</h3>
-                <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
                   <Clock size={12} />
                   Edited {dateStr}
                 </div>
@@ -162,10 +167,10 @@ export default function Home() {
                 </button>
                 
                 {activeMenu === dash.id && (
-                  <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl py-2 w-32 animate-in zoom-in-95 duration-200 z-50">
+                  <div className="bg-[var(--bg-sidebar)] border border-[var(--border)] rounded-xl shadow-2xl py-2 w-32 animate-in zoom-in-95 duration-200 z-50">
                     <button 
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); setRenameTarget(dash); setActiveMenu(null); }}
-                      className="w-full text-left px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 hover:text-white flex items-center gap-2"
+                      className="w-full text-left px-4 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--bg-surface)] hover:text-white flex items-center gap-2"
                     >
                       <Edit2 size={12} /> Rename
                     </button>
@@ -182,11 +187,11 @@ export default function Home() {
             )
           })}
           
-          <Link to="/studio/new" className="glass rounded-2xl border-2 border-dashed border-slate-700 hover:border-blue-500 hover:bg-blue-500/5 transition-all flex flex-col items-center justify-center min-h-[220px] text-slate-400 hover:text-blue-400">
-            <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mb-3">
+          <Link to="/studio/new" className="bg-[var(--bg-sidebar)]/30 rounded-2xl border-2 border-dashed border-[var(--border)] hover:border-[var(--primary)] hover:bg-[var(--primary)]/5 transition-all flex flex-col items-center justify-center min-h-[220px] text-[var(--text-muted)] hover:text-[var(--primary)]">
+            <div className="w-12 h-12 rounded-full bg-[var(--bg-main)]/50 flex items-center justify-center mb-3">
               <Plus size={24} />
             </div>
-            <span className="font-medium">Create New</span>
+            <span className="font-bold text-[10px] uppercase tracking-widest">Create New</span>
           </Link>
         </div>
       </div>

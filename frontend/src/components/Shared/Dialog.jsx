@@ -23,7 +23,7 @@ export function Dialog({ isOpen, onClose, children, title }) {
       />
       
       {/* Modal Container */}
-      <div className="relative w-full max-w-[440px] bg-[#1c1917] border border-white/5 rounded-[32px] shadow-2xl shadow-black/50 overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-[440px] bg-[var(--bg-sidebar)] border border-[var(--border)] rounded-[32px] shadow-2xl shadow-black/50 overflow-hidden animate-in zoom-in-95 duration-200">
         <div className="p-8">
           {title && (
             <h2 className="text-xl font-bold text-white mb-6 tracking-tight">{title}</h2>
@@ -45,8 +45,8 @@ export function DialogActions({ children }) {
 
 export function DialogButton({ onClick, variant = 'primary', children, disabled }) {
   const styles = {
-    primary: 'bg-[#ffa48e] hover:bg-[#ff9278] text-[#1c1917]',
-    secondary: 'bg-[#3b322e] hover:bg-[#4d423d] text-white/90',
+    primary: 'bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--bg-main)]',
+    secondary: 'bg-[var(--bg-surface)] hover:text-white text-[var(--text-muted)] border border-[var(--border)]',
   };
 
   return (

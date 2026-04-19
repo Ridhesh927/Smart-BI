@@ -1,6 +1,66 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
 
+/* Theme Variables */
+:root.theme-night {
+  --bg-main: #020617;
+  --bg-sidebar: #0f172a;
+  --bg-surface: #1e293b;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --border: #1e293b;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --accent: #6366f1;
+}
+
+:root.theme-emerald {
+  --bg-main: #06100c;
+  --bg-sidebar: #0a1f18;
+  --bg-surface: #123d2e;
+  --primary: #10b981;
+  --primary-hover: #059669;
+  --border: #134e4a;
+  --text-main: #ecfdf5;
+  --text-muted: #6ee7b7;
+  --accent: #34d399;
+}
+
+:root.theme-sunset {
+  --bg-main: #1c1917;
+  --bg-sidebar: #292524;
+  --bg-surface: #44403c;
+  --primary: #ffa48e; /* The "babyy" salmon-peach */
+  --primary-hover: #f87171;
+  --border: #57534e;
+  --text-main: #fafaf9;
+  --text-muted: #d6d3d1;
+  --accent: #fcd34d;
+}
+
+:root.theme-oceanic {
+  --bg-main: #08121e;
+  --bg-sidebar: #0b1a2b;
+  --bg-surface: #142c44;
+  --primary: #06b6d4;
+  --primary-hover: #0891b2;
+  --border: #153a5a;
+  --text-main: #f0f9ff;
+  --text-muted: #7dd3fc;
+  --accent: #38bdf8;
+}
+
+:root.theme-snow {
+  --bg-main: #f8fafc;
+  --bg-sidebar: #ffffff;
+  --bg-surface: #ffffff;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --border: #e2e8f0;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --accent: #4f46e5;
+}
 
 @theme {
   --color-primary-50: #eff6ff;
@@ -14,9 +74,10 @@
 body {
   margin: 0;
   font-family: var(--font-sans);
-  background-color: #0f172a; 
-  color: #f8fafc;
+  background-color: var(--bg-main); 
+  color: var(--text-main);
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Base styles for scrollbar */
@@ -28,16 +89,20 @@ body {
   background: rgba(0, 0, 0, 0.1);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .glass {
-  background: rgba(30, 41, 59, 0.7);
+  background: rgba(15, 23, 42, 0.7);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.theme-transition {
+  transition: all 0.3s ease;
 }

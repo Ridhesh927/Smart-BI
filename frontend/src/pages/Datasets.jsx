@@ -161,17 +161,17 @@ export default function Datasets() {
   );
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500 theme-transition">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Datasets Manager</h1>
-          <p className="text-slate-400">Upload, organize, and prepare your data sources for AI analysis.</p>
+          <p className="text-[var(--text-muted)]">Upload, organize, and prepare your data sources for AI analysis.</p>
         </div>
       </div>
 
       <div 
         className={`border-2 border-dashed rounded-3xl p-12 text-center transition-all relative overflow-hidden ${
-          isDragging ? "border-blue-500 bg-blue-500/10 scale-[1.01]" : "border-slate-800 bg-slate-900/40 hover:border-slate-600 hover:bg-slate-900/60"
+          isDragging ? "border-[var(--primary)] bg-[var(--primary)]/10 scale-[1.01]" : "border-[var(--border)] bg-[var(--bg-sidebar)]/30 hover:border-[var(--primary)]/50 hover:bg-[var(--bg-sidebar)]/50"
         }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -186,49 +186,49 @@ export default function Datasets() {
         />
         
         {uploading && (
-          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm z-20 flex flex-col items-center justify-center animate-in fade-in duration-200">
-            <Loader2 className="w-10 h-10 text-blue-500 animate-spin mb-4" />
+          <div className="absolute inset-0 bg-[var(--bg-main)]/60 backdrop-blur-sm z-20 flex flex-col items-center justify-center animate-in fade-in duration-200">
+            <Loader2 className="w-10 h-10 text-[var(--primary)] animate-spin mb-4" />
             <h3 className="text-lg font-bold text-white">Uploading Dataset...</h3>
-            <p className="text-sm text-slate-400">Processing your data structure</p>
+            <p className="text-sm text-[var(--text-muted)]">Processing your data structure</p>
           </div>
         )}
 
-        <div className="w-20 h-20 bg-slate-800/50 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl border border-slate-700">
-          <UploadCloud size={40} className={`transition-colors ${isDragging ? "text-blue-400" : "text-slate-500"}`} />
+        <div className="w-20 h-20 bg-[var(--bg-main)]/50 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl border border-[var(--border)]">
+          <UploadCloud size={40} className={`transition-colors ${isDragging ? "text-[var(--primary)]" : "text-[var(--text-muted)]"}`} />
         </div>
         <h3 className="text-xl font-bold text-white mb-2">
           Drag & drop your records here
         </h3>
-        <p className="text-slate-500 mb-8 max-w-md mx-auto text-sm leading-relaxed">
+        <p className="text-[var(--text-muted)] mb-8 max-w-md mx-auto text-sm leading-relaxed">
           Support for CSV, Excel (.xlsx), and JSON files up to 500MB. AutoBI will automatically extract dimensions and measures.
         </p>
         <button 
-          className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:from-blue-500 hover:to-indigo-500 transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+          className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--bg-main)] px-8 py-3 rounded-xl font-bold transition-all shadow-lg shadow-[var(--primary)]/20 active:scale-95"
           onClick={() => fileInputRef.current.click()}
         >
           Browse Files
         </button>
       </div>
 
-      <div className="glass rounded-3xl border border-slate-800/50 overflow-hidden shadow-2xl">
-        <div className="p-6 border-b border-slate-800/50 flex items-center justify-between bg-slate-900/20">
+      <div className="bg-[var(--bg-sidebar)]/40 rounded-3xl border border-[var(--border)] overflow-hidden shadow-2xl">
+        <div className="p-6 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg-sidebar)]/20">
           <div className="flex items-center gap-4 flex-1">
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" size={18} />
               <input 
                 type="text" 
                 placeholder="Search your library..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-slate-950/50 border border-slate-800 rounded-xl pl-12 pr-4 py-2.5 text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none w-full transition-all"
+                className="bg-[var(--bg-main)]/50 border border-[var(--border)] rounded-xl pl-12 pr-4 py-2.5 text-sm text-white focus:ring-1 focus:ring-[var(--primary)] outline-none w-full transition-all"
               />
             </div>
           </div>
           <div className="flex items-center gap-6">
-            <div className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+            <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">
               {filteredDatasets.length} total sources
             </div>
-            <button className="p-2.5 text-slate-400 hover:text-white transition-colors bg-slate-800/50 border border-slate-700 rounded-xl">
+            <button className="p-2.5 text-[var(--text-muted)] hover:text-white transition-colors bg-[var(--bg-main)]/50 border border-[var(--border)] rounded-xl">
               <Filter size={18} />
             </button>
           </div>
@@ -236,12 +236,12 @@ export default function Datasets() {
         
         <div className="overflow-x-auto min-h-[300px]">
           {loading ? (
-            <div className="flex flex-col items-center justify-center p-20 text-slate-600">
-              <Loader2 size={32} className="animate-spin mb-4" />
+            <div className="flex flex-col items-center justify-center p-20 text-[var(--text-muted)]">
+              <Loader2 size={32} className="animate-spin mb-4 text-[var(--primary)]" />
               <p className="text-sm font-medium">Synchronizing your library...</p>
             </div>
           ) : filteredDatasets.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-20 text-slate-600">
+            <div className="flex flex-col items-center justify-center p-20 text-[var(--text-muted)]">
               <FileText size={48} className="mb-4 opacity-20" />
               <p className="text-sm font-medium">No datasets found in your library.</p>
               <p className="text-xs">Upload a file to start your analysis.</p>
@@ -249,7 +249,7 @@ export default function Datasets() {
           ) : (
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-800/50 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 bg-slate-900/10">
+                <tr className="border-b border-[var(--border)] text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-muted)] bg-[var(--bg-main)]/20">
                   <th className="p-6 font-bold">Source Name</th>
                   <th className="p-6 font-bold text-center">Data Size</th>
                   <th className="p-6 font-bold text-center">Status</th>
@@ -257,52 +257,52 @@ export default function Datasets() {
                   <th className="p-6 font-bold text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/30">
+              <tbody className="divide-y divide-[var(--border)]/30">
                 {filteredDatasets.map((ds) => (
-                  <tr key={ds.id} className="hover:bg-blue-500/[0.02] transition-colors group">
+                  <tr key={ds.id} className="hover:bg-[var(--primary)]/[0.04] transition-colors group">
                     <td className="p-6">
                       <div className="flex items-center gap-4">
-                        <div className="w-11 h-11 rounded-xl bg-slate-800/50 border border-slate-700 flex items-center justify-center text-slate-400 group-hover:scale-110 transition-transform">
-                          {ds.file_name.endsWith('.csv') ? <FileText size={20} className="text-blue-400" /> : <FileSpreadsheet size={20} className="text-emerald-400" />}
+                        <div className="w-11 h-11 rounded-xl bg-[var(--bg-main)]/50 border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] group-hover:scale-110 transition-transform">
+                          {ds.file_name.endsWith('.csv') ? <FileText size={20} className="text-[var(--primary)]" /> : <FileSpreadsheet size={20} className="text-emerald-400" />}
                         </div>
                         <div>
-                          <div className="font-bold text-slate-200 text-sm group-hover:text-white transition-colors">{ds.file_name}</div>
-                          <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{ds.file_name.split('.').pop()} SOURCE</div>
+                          <div className="font-bold text-white text-sm group-hover:text-white transition-colors">{ds.file_name}</div>
+                          <div className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-wider">{ds.file_name.split('.').pop()} SOURCE</div>
                         </div>
                       </div>
                     </td>
-                    <td className="p-6 text-center text-xs font-medium text-slate-400">{formatSize(ds.file_size)}</td>
+                    <td className="p-6 text-center text-xs font-medium text-[var(--text-muted)]">{formatSize(ds.file_size)}</td>
                     <td className="p-6 text-center">
-                      <span className="px-3 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[9px] font-bold rounded-full uppercase tracking-widest italic">Ready</span>
+                      <span className="px-3 py-1 bg-[var(--primary)]/10 border border-[var(--primary)]/20 text-[var(--primary)] text-[9px] font-bold rounded-full uppercase tracking-widest italic">Ready</span>
                     </td>
-                    <td className="p-6 text-xs text-slate-500">{new Date(ds.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                    <td className="p-6 text-xs text-[var(--text-muted)]">{new Date(ds.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                     <td className="p-6 text-right">
                       <div className="flex justify-end gap-2">
                         <button 
                           onClick={() => handleDownloadClean(ds)}
                           disabled={downloadingId === ds.id}
-                          className="p-2.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-400/10 rounded-xl transition-all disabled:opacity-50" 
+                          className="p-2.5 text-[var(--text-muted)] hover:text-emerald-400 hover:bg-emerald-400/10 rounded-xl transition-all disabled:opacity-50" 
                           title="Download Cleaned CSV"
                         >
                           {downloadingId === ds.id ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
                         </button>
                         <button 
                           onClick={() => setProfileDataset(ds)}
-                          className="p-2.5 text-slate-400 hover:text-purple-400 hover:bg-purple-400/10 rounded-xl transition-all" 
+                          className="p-2.5 text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 rounded-xl transition-all" 
                           title="Data Profile Report"
                         >
                           <BarChart2 size={18} />
                         </button>
                         <button 
                           onClick={() => navigate(`/studio/new?dataset=${ds.id}`)}
-                          className="p-2.5 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-xl transition-all" 
+                          className="p-2.5 text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 rounded-xl transition-all" 
                           title="Open in Studio"
                         >
                           <ExternalLink size={18} />
                         </button>
                         <button 
                           onClick={() => setDeleteTargetId(ds.id)}
-                          className="p-2.5 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all" 
+                          className="p-2.5 text-[var(--text-muted)] hover:text-rose-400 hover:bg-rose-400/10 rounded-xl transition-all" 
                           title="Delete"
                         >
                           <Trash2 size={18} />

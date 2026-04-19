@@ -43,18 +43,24 @@ export default function Studio() {
     {
       id: 'sheet-1',
       name: 'Sheet 1',
-      shelves: { columns: [], rows: [], marks: [], filters: [], pages: [] },
+      shelves: { 
+        columns: [], 
+        rows: [], 
+        marks: [], // Array of pills with a .role property ('color', 'size', 'label', 'detail', 'tooltip')
+        filters: [], 
+        pages: [] 
+      },
       chartData: [],
       type: 'bar'
     }
   ]);
+
   const [activeSheetId] = useState('sheet-1');
   const [dataFields, setDataFields] = useState({ dimensions: [], measures: [] });
   const [loading, setLoading] = useState(false);
   const [activeDataset, setActiveDataset] = useState(null);
   const [qualityScore, setQualityScore] = useState(100);
   const [datasetProfile, setDatasetProfile] = useState(null);
-
   const activeSheet = sheets.find(s => s.id === activeSheetId) || sheets[0];
   const currentMarkType = MARK_TYPES.find(m => m.type === activeSheet.type) || MARK_TYPES[0];
 
@@ -75,13 +81,22 @@ export default function Studio() {
     if (over && active.data.current) {
       const field = active.data.current;
       const shelfId = over.id;
-      if (activeSheet.shelves[shelfId]?.some(p => p.name === field.name)) return;
+      
+      // Handle Mark-specific roles (mark-color, mark-size, etc.)
+      const isMarkRole = shelfId.startsWith('mark-');
+      const targetShelf = isMarkRole ? 'marks' : shelfId;
+      const role = isMarkRole ? shelfId.replace('mark-', '') : 'detail';
 
-      const pillId = `${shelfId}-${field.name}-${Date.now()}`;
+      // Check for duplicates in the same shelf (same field name + same role if applicable)
+      const existing = activeSheet.shelves[targetShelf];
+      if (Array.isArray(existing) && existing.some(p => p.name === field.name && (!isMarkRole || p.role === role))) return;
+
+      const pillId = `${targetShelf}-${field.name}-${Date.now()}`;
       const newPill = {
         ...field,
         displayName: field.type === 'measure' ? `SUM(${field.name})` : field.name,
-        pillId
+        pillId,
+        role: targetShelf === 'marks' ? role : undefined
       };
 
       if (shelfId === 'filters') {
@@ -89,12 +104,19 @@ export default function Studio() {
         return;
       }
 
-      updateActiveSheet({
-        shelves: {
-          ...activeSheet.shelves,
-          [shelfId]: [...activeSheet.shelves[shelfId], newPill]
+      let updatedShelves = { ...activeSheet.shelves };
+      
+      if (targetShelf === 'marks') {
+        const singletonRoles = ['color', 'size', 'label'];
+        if (singletonRoles.includes(role)) {
+          updatedShelves.marks = updatedShelves.marks.filter(p => p.role !== role);
         }
-      });
+        updatedShelves.marks = [...updatedShelves.marks, newPill];
+      } else {
+        updatedShelves[targetShelf] = [...(activeSheet.shelves[targetShelf] || []), newPill];
+      }
+
+      updateActiveSheet({ shelves: updatedShelves });
     }
   };
 
@@ -289,7 +311,7 @@ export default function Studio() {
 
   return (
     <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="absolute inset-0 flex flex-col bg-slate-950 font-sans">
+      <div className="absolute inset-0 flex flex-col bg-[var(--bg-main)] font-sans theme-transition">
         
         {filterModalConfig && activeDataset && (
           <FilterModal 
@@ -339,25 +361,25 @@ export default function Studio() {
           
           <ShelfSidebar activeSheet={activeSheet} removePill={removePill} isMarksOpen={isMarksOpen} setIsMarksOpen={setIsMarksOpen} currentMarkType={currentMarkType} updateActiveSheet={updateActiveSheet} />
 
-          <div className="flex-1 bg-slate-950 flex flex-col overflow-hidden relative">
+          <div className="flex-1 bg-[var(--bg-main)] flex flex-col overflow-hidden relative">
             <CanvasHeader activeSheet={activeSheet} removePill={removePill} />
-            <div className="flex-1 p-4 flex flex-col min-h-0 bg-[#020617] relative">
+            <div className="flex-1 p-4 flex flex-col min-h-0 bg-[var(--bg-main)] relative">
                
                {/* Quality Insight Alert */}
                {qualityScore < 85 && (
-                 <div className="mb-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-center justify-between animate-in slide-in-from-top-4 duration-500">
+                 <div className="mb-4 bg-[var(--accent)]/10 border border-[var(--accent)]/20 rounded-2xl p-4 flex items-center justify-between animate-in slide-in-from-top-4 duration-500">
                    <div className="flex items-center gap-4">
-                     <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
+                     <div className="w-10 h-10 rounded-full bg-[var(--accent)]/20 flex items-center justify-center text-[var(--accent)] shrink-0">
                        <AlertCircle size={20} />
                      </div>
                      <div>
                        <h4 className="text-sm font-bold text-white">Smart Quality Suggestion</h4>
-                       <p className="text-xs text-slate-400">Your dataset has a quality score of <span className="text-amber-400 font-bold">{qualityScore}%</span>. Missing values might skew your charts.</p>
+                       <p className="text-[10px] text-[var(--text-muted)]">Your dataset has a quality score of <span className="text-[var(--accent)] font-bold">{qualityScore}%</span>. Missing values might skew your charts.</p>
                      </div>
                    </div>
                    <button 
                      onClick={() => setActiveLeftTab('quality')}
-                     className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-xl transition-all shadow-lg shadow-amber-500/20"
+                     className="px-4 py-2 bg-[var(--accent)] hover:opacity-90 text-slate-950 text-xs font-bold rounded-xl transition-all shadow-lg"
                    >
                      Fix Issues
                    </button>
@@ -387,7 +409,7 @@ export default function Studio() {
 
       <DragOverlay dropAnimation={null}>
         {draggingField && (
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold shadow-2xl border ${draggingField.type === 'measure' ? 'bg-emerald-500 border-emerald-400' : 'bg-blue-600 border-blue-400'} text-white`}>
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold shadow-2xl border ${draggingField.type === 'measure' ? 'bg-emerald-500 border-emerald-400' : 'bg-[var(--primary)] border-[var(--primary)]/30'} text-white`}>
              {draggingField.name}
           </div>
         )}

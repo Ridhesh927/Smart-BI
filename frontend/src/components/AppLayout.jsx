@@ -11,11 +11,11 @@ export default function AppLayout() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-950 overflow-hidden text-slate-200 font-sans">
+    <div className="flex h-screen bg-[var(--bg-main)] overflow-hidden text-[var(--text-main)] font-sans theme-transition">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         <TopNav />
-        <main className="flex-1 overflow-y-auto p-8 relative">
+        <main className="flex-1 overflow-y-auto p-8 relative scroll-smooth slim-scrollbar">
           <Outlet />
         </main>
       </div>

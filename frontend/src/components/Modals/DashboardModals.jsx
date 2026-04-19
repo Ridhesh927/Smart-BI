@@ -22,7 +22,7 @@ export function RenameModal({ isOpen, onClose, currentTitle, onRename }) {
             type="text"
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
-            className="w-full bg-transparent border-2 border-[#ffa48e]/30 focus:border-[#ffa48e] rounded-2xl px-4 py-3 text-white outline-none transition-all"
+            className="w-full bg-transparent border-2 border-[var(--primary)]/30 focus:border-[var(--primary)] rounded-2xl px-4 py-3 text-white outline-none transition-all shadow-inner"
             spellCheck={false}
           />
           <DialogActions>

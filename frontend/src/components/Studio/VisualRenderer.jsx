@@ -1,21 +1,91 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { 
   BarChart, Bar, LineChart as ReLineChart, Line, XAxis, YAxis, 
   CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer, Legend, Cell,
   PieChart as RePieChart, Pie as RePie, AreaChart, Area,
-  ScatterChart, Scatter, ZAxis
+  ScatterChart, Scatter, ZAxis, LabelList
 } from 'recharts';
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import { BarChart2 } from "lucide-react";
 import { CHART_COLORS } from './constants';
 
-export const VisualRenderer = React.memo(({ activeSheet, activeDataset, queryLoading }) => {
-  if (!activeSheet || !activeDataset) return null;
+const getPillKey = (pill) => pill?.field ?? pill?.name;
 
-  const getPillKey = (pill) => pill?.field ?? pill?.name;
+const CustomTooltip = ({ active, payload, label, shelves }) => {
+  if (!active || !payload || !payload.length) return null;
+
+  return (
+    <div className="bg-[var(--bg-sidebar)] border border-[var(--border)] p-3 rounded-xl shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-200">
+      <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] font-bold mb-2 border-b border-[var(--border)] pb-1.5">
+        {label || 'Data Details'}
+      </div>
+      <div className="space-y-1.5">
+        {payload.map((entry, index) => (
+          <div key={index} className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-1.5 overflow-hidden">
+               <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: entry.color || entry.fill || 'var(--primary)' }} />
+               <span className="text-[10px] text-[var(--text-muted)] truncate">{entry.name}:</span>
+            </div>
+            <span className="text-[10px] font-bold text-white whitespace-nowrap">
+              {typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}
+            </span>
+          </div>
+        ))}
+        {/* All Mark Roles in Tooltip */}
+        {shelves?.marks?.map(p => {
+            // Avoid showing fields already in the primary payload (measures/columns)
+            if (payload.some(entry => entry.dataKey === getPillKey(p))) return null;
+
+            const val = payload[0]?.payload?.[getPillKey(p)];
+            if (val === undefined) return null;
+            
+            return (
+              <div key={p.pillId} className="flex items-center justify-between gap-4 pt-1 border-t border-[var(--border)]/50 mt-1 first:border-0 first:pt-0 first:mt-0">
+                <div className="flex items-center gap-1.5 overflow-hidden">
+                    <span className="text-[10px] text-[var(--text-muted)] italic">{p.displayName}:</span>
+                </div>
+                <span className="text-[10px] font-medium text-[var(--text-main)]">
+                   {typeof val === 'number' ? val.toLocaleString() : String(val)}
+                </span>
+              </div>
+            );
+        })}
+      </div>
+    </div>
+  );
+};
+
+export const VisualRenderer = React.memo(({ activeSheet, activeDataset, queryLoading }) => {
+  // 1. Hooks (Always at top)
+  const colorMap = useMemo(() => {
+    if (!activeSheet?.shelves?.marks || !activeSheet?.chartData) return {};
+    const colorPill = activeSheet.shelves.marks.find(p => p.role === 'color');
+    const colorKey = colorPill ? getPillKey(colorPill) : null;
+    if (!colorPill || colorPill.type !== 'dimension') return {};
+    
+    const uniqueValues = [...new Set(activeSheet.chartData.map(d => String(d[colorKey])))];
+    const mapping = {};
+    uniqueValues.forEach((val, i) => {
+        mapping[val] = CHART_COLORS[i % CHART_COLORS.length];
+    });
+    return mapping;
+  }, [activeSheet?.chartData, activeSheet?.shelves?.marks]);
+
+  // Early return if no data/config
+  if (!activeSheet || !activeDataset) return null;
 
   const hasData = activeSheet.chartData && activeSheet.chartData.length > 0;
   const hasShelves = activeSheet.shelves.columns.length > 0 || activeSheet.shelves.rows.length > 0;
+  
+  // Marks Extraction
+  const colorPill = activeSheet.shelves.marks.find(p => p.role === 'color');
+  const sizePill = activeSheet.shelves.marks.find(p => p.role === 'size');
+  const labelPill = activeSheet.shelves.marks.find(p => p.role === 'label');
+  const colorKey = colorPill ? getPillKey(colorPill) : null;
+  const sizeKey = sizePill ? getPillKey(sizePill) : null;
+  const labelKey = labelPill ? getPillKey(labelPill) : null;
+
+  // Pie Logic (Define here so it's available for standard logic)
   const pieDimension = getPillKey(activeSheet.shelves.columns[0]);
   const pieMeasure = getPillKey(activeSheet.shelves.rows[0]);
   const pieData = activeSheet.type === 'pie' && hasData && pieDimension && pieMeasure
@@ -23,18 +93,10 @@ export const VisualRenderer = React.memo(({ activeSheet, activeDataset, queryLoa
         const sorted = [...activeSheet.chartData]
           .filter(item => item?.[pieDimension] !== undefined && item?.[pieMeasure] !== undefined)
           .sort((a, b) => Number(b[pieMeasure] || 0) - Number(a[pieMeasure] || 0));
-
         if (sorted.length <= 8) return sorted;
-
         const visible = sorted.slice(0, 7);
-        const othersValue = sorted
-          .slice(7)
-          .reduce((sum, item) => sum + Number(item?.[pieMeasure] || 0), 0);
-
-        return [
-          ...visible,
-          { [pieDimension]: 'Others', [pieMeasure]: othersValue }
-        ];
+        const othersValue = sorted.slice(7).reduce((sum, item) => sum + Number(item?.[pieMeasure] || 0), 0);
+        return [...visible, { [pieDimension]: 'Others', [pieMeasure]: othersValue }];
       })()
     : activeSheet.chartData;
   const showPieLabels = Array.isArray(pieData) && pieData.length <= 6;
@@ -42,20 +104,14 @@ export const VisualRenderer = React.memo(({ activeSheet, activeDataset, queryLoa
   // 1. High-Fidelity Geographic Map Rendering
   if (activeSheet.type === 'map' && hasShelves) {
     return (
-      <div className="flex-1 min-h-0 relative bg-slate-900/10 rounded-xl overflow-hidden isolate">
+      <div className="flex-1 min-h-0 relative bg-[var(--bg-main)]/10 rounded-xl overflow-hidden isolate">
         {queryLoading && <LoadingOverlay />}
         {hasData ? (
           <div className="w-full h-full absolute inset-0 isolate">
-             <MapContainer 
-                center={[37.8, -96]} 
-                zoom={4} 
-                scrollWheelZoom={false}
-                className="w-full h-full z-0"
-                zoomControl={false}
-              >
+             <MapContainer center={[37.8, -96]} zoom={4} scrollWheelZoom={false} className="w-full h-full z-0" zoomControl={false}>
                 <TileLayer
                   url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                  attribution='&copy; CARTO'
                 />
                 {activeSheet.chartData.map((point, idx) => (
                   point.lat && point.lng && (
@@ -63,18 +119,14 @@ export const VisualRenderer = React.memo(({ activeSheet, activeDataset, queryLoa
                       key={idx}
                       center={[point.lat, point.lng]}
                       radius={Math.sqrt(point[activeSheet.shelves.rows[0]?.name] || 100) / 2}
-                      fillColor="#3b82f6"
-                      color="#3b82f6"
-                      weight={1}
-                      opacity={0.8}
-                      fillOpacity={0.4}
+                      fillColor={colorKey ? (colorMap[point[colorKey]] || 'var(--primary)') : 'var(--primary)'}
+                      color={colorKey ? (colorMap[point[colorKey]] || 'var(--primary)') : 'var(--primary)'}
+                      weight={1} opacity={0.8} fillOpacity={0.4}
                     >
                       <Popup>
-                        <div className="bg-slate-900 text-white p-2 text-xs rounded-lg border border-slate-700">
+                        <div className="bg-[var(--bg-sidebar)] text-white p-2 text-xs rounded-lg border border-[var(--border)]">
                           <div className="font-bold mb-1">{point[activeSheet.shelves.columns[0]?.name] || 'Location'}</div>
-                          <div className="text-slate-400">
-                            {activeSheet.shelves.rows[0]?.name}: {point[activeSheet.shelves.rows[0]?.name]}
-                          </div>
+                          <div className="text-[var(--text-muted)]">{activeSheet.shelves.rows[0]?.name}: {point[activeSheet.shelves.rows[0]?.name]}</div>
                         </div>
                       </Popup>
                     </CircleMarker>
@@ -92,20 +144,20 @@ export const VisualRenderer = React.memo(({ activeSheet, activeDataset, queryLoa
     return (
       <div className="flex-1 min-h-0 relative overflow-hidden">
         {queryLoading && <LoadingOverlay />}
-        <div className="w-full h-full overflow-auto bg-slate-900/20 rounded-xl p-2 custom-scrollbar">
+        <div className="w-full h-full overflow-auto bg-[var(--bg-main)]/20 rounded-xl p-2 slim-scrollbar scroll-smooth">
           <table className="w-full text-left text-[11px] border-collapse">
-            <thead className="sticky top-0 bg-slate-900/80 backdrop-blur-sm z-10">
+            <thead className="sticky top-0 bg-[var(--bg-sidebar)]/80 backdrop-blur-sm z-10">
               <tr>
                 {Object.keys(activeSheet.chartData[0] || {}).map(key => (
-                  <th key={key} className="px-3 py-2 border-b border-slate-800 text-slate-500 font-bold uppercase tracking-wider">{key}</th>
+                  <th key={key} className="px-3 py-2 border-b border-[var(--border)] text-[var(--text-muted)] font-bold uppercase tracking-wider">{key}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {activeSheet.chartData.map((row, i) => (
-                <tr key={i} className="hover:bg-slate-800/50 transition-colors">
+                <tr key={i} className="hover:bg-[var(--bg-surface)]/50 transition-colors">
                   {Object.values(row).map((val, j) => (
-                    <td key={j} className="px-3 py-2 border-b border-slate-800/50 text-slate-300">{String(val)}</td>
+                    <td key={j} className="px-3 py-2 border-b border-[var(--border)]/50 text-[var(--text-main)]/80">{String(val)}</td>
                   ))}
                 </tr>
               ))}
@@ -118,110 +170,90 @@ export const VisualRenderer = React.memo(({ activeSheet, activeDataset, queryLoa
 
   // 3. Standard Recharts Visualization Logic
   return (
-    <div className="flex-1 min-h-0 relative">
+    <div className="flex-1 min-h-0 relative text-[var(--text-muted)] theme-transition">
       {queryLoading && <LoadingOverlay />}
       {hasData ? (
         <ResponsiveContainer width="100%" height="100%">
           {activeSheet.type === 'pie' ? (
              <RePieChart>
               <RePie
-                data={pieData}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={110}
-                paddingAngle={5}
-                dataKey={pieMeasure}
-                nameKey={pieDimension}
+                data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={110} paddingAngle={5}
+                dataKey={pieMeasure} nameKey={pieDimension}
                 label={showPieLabels ? ({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%` : false}
               >
                 {pieData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                 ))}
               </RePie>
-              <ReTooltip 
-                contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '10px' }}
-                itemStyle={{ color: '#fff' }}
-              />
+              <ReTooltip content={<CustomTooltip shelves={activeSheet.shelves} />} />
               <Legend iconType="circle" />
             </RePieChart>
           ) : activeSheet.type === 'line' ? (
             <ReLineChart data={activeSheet.chartData} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-              <XAxis dataKey={getPillKey(activeSheet.shelves.columns[0])} stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} dy={10} />
-              <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
-              <ReTooltip contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '10px' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <XAxis dataKey={getPillKey(activeSheet.shelves.columns[0])} stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} dy={10} />
+              <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
+              <ReTooltip content={<CustomTooltip shelves={activeSheet.shelves} />} />
               <Legend />
-              <Line type="monotone" dataKey={getPillKey(activeSheet.shelves.rows[0])} stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6' }} activeDot={{ r: 6 }} />
+              <Line type="monotone" dataKey={getPillKey(activeSheet.shelves.rows[0])} stroke="var(--primary)" strokeWidth={3} dot={{ r: 4, fill: 'var(--primary)' }} activeDot={{ r: 6 }}>
+                {labelKey && <LabelList dataKey={labelKey} position="top" style={{ fontSize: '10px', fill: 'var(--text-muted)' }} />}
+              </Line>
             </ReLineChart>
           ) : activeSheet.type === 'area' ? (
             <AreaChart data={activeSheet.chartData} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
               <defs>
                 <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.4}/>
+                  <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-              <XAxis dataKey={getPillKey(activeSheet.shelves.columns[0])} stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} dy={10} />
-              <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
-              <ReTooltip contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '10px' }} />
-              <Area type="monotone" dataKey={getPillKey(activeSheet.shelves.rows[0])} stroke="#3b82f6" fillOpacity={1} fill="url(#areaGradient)" strokeWidth={2} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <XAxis dataKey={getPillKey(activeSheet.shelves.columns[0])} stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} dy={10} />
+              <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
+              <ReTooltip content={<CustomTooltip shelves={activeSheet.shelves} />} />
+              <Area type="monotone" dataKey={getPillKey(activeSheet.shelves.rows[0])} stroke="var(--primary)" fillOpacity={1} fill="url(#areaGradient)" strokeWidth={2}>
+                {labelKey && <LabelList dataKey={labelKey} position="top" style={{ fontSize: '10px', fill: 'var(--text-muted)' }} />}
+              </Area>
             </AreaChart>
           ) : activeSheet.type === 'scatter' ? (
             <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis 
-                type="number" 
-                dataKey={getPillKey(activeSheet.shelves.rows[0])} 
-                name={getPillKey(activeSheet.shelves.rows[0])} 
-                stroke="#64748b" 
-                fontSize={10} 
-                label={{ value: getPillKey(activeSheet.shelves.rows[0]), position: 'bottom', fill: '#64748b', fontSize: 10 }}
+                type="number" dataKey={getPillKey(activeSheet.shelves.rows[0])} name={getPillKey(activeSheet.shelves.rows[0])} 
+                stroke="var(--text-muted)" fontSize={10} label={{ value: getPillKey(activeSheet.shelves.rows[0]), position: 'bottom', fill: 'var(--text-muted)', fontSize: 10 }}
               />
               <YAxis 
-                type="number" 
-                dataKey={getPillKey(activeSheet.shelves.rows[1]) || getPillKey(activeSheet.shelves.rows[0])} 
+                type="number" dataKey={getPillKey(activeSheet.shelves.rows[1]) || getPillKey(activeSheet.shelves.rows[0])} 
                 name={getPillKey(activeSheet.shelves.rows[1]) || getPillKey(activeSheet.shelves.rows[0])} 
-                stroke="#64748b" 
-                fontSize={10} 
-                label={{ value: getPillKey(activeSheet.shelves.rows[1]) || getPillKey(activeSheet.shelves.rows[0]), angle: -90, position: 'insideLeft', fill: '#64748b', fontSize: 10 }}
+                stroke="var(--text-muted)" fontSize={10} label={{ value: getPillKey(activeSheet.shelves.rows[1]) || getPillKey(activeSheet.shelves.rows[0]), angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: 10 }}
               />
-              <ZAxis type="number" range={[60, 400]} />
-              <ReTooltip 
-                cursor={{ strokeDasharray: '3 3' }}
-                contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '10px' }}
-              />
+              <ZAxis type="number" dataKey={sizeKey || undefined} range={[60, 400]} />
+              <ReTooltip cursor={{ strokeDasharray: '3 3' }} content={<CustomTooltip shelves={activeSheet.shelves} />} />
               <Legend />
-              <Scatter 
-                name={activeSheet.shelves.columns[0]?.name || 'Data Points'} 
-                data={activeSheet.chartData} 
-                fill="#3b82f6" 
-                line={false}
-                shape="circle"
-              />
+              <Scatter name={activeSheet.shelves.columns[0]?.name || 'Data Points'} data={activeSheet.chartData} fill="var(--primary)" line={false} shape="circle">
+                {hasData && activeSheet.chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={colorKey ? (colorMap[entry[colorKey]] || 'var(--primary)') : 'var(--primary)'} />
+                ))}
+                {labelKey && <LabelList dataKey={labelKey} position="top" style={{ fontSize: '10px', fill: 'var(--text-muted)' }} />}
+              </Scatter>
             </ScatterChart>
-          ) : activeSheet.type === 'histogram' ? (
-              <BarChart data={activeSheet.chartData} barCategoryGap={0} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-              <XAxis dataKey={getPillKey(activeSheet.shelves.columns[0])} stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} dy={10} />
-              <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
-              <ReTooltip contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '10px' }} />
-              <Bar dataKey={getPillKey(activeSheet.shelves.rows[0])} fill="#3b82f6" stroke="#1e293b" />
-            </BarChart>
           ) : (
             <BarChart data={activeSheet.chartData} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
               <defs>
                 <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.2}/>
+                  <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.8}/><stop offset="95%" stopColor="var(--primary)" stopOpacity={0.2}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-              <XAxis dataKey={getPillKey(activeSheet.shelves.columns[0])} stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} dy={10} />
-              <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
-              <ReTooltip contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '10px' }} />
-              <Bar dataKey={getPillKey(activeSheet.shelves.rows[0])} fill="url(#barGradient)" radius={[6, 6, 0, 0]} barSize={32} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <XAxis dataKey={getPillKey(activeSheet.shelves.columns[0])} stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} dy={10} />
+              <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
+              <ReTooltip content={<CustomTooltip shelves={activeSheet.shelves} />} />
+              <Bar dataKey={getPillKey(activeSheet.shelves.rows[0])} fill={colorKey ? undefined : "url(#barGradient)"} radius={[6, 6, 0, 0]} barSize={32}>
+                {hasData && activeSheet.chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={colorKey ? (colorMap[entry[colorKey]] || 'var(--primary)') : undefined} />
+                ))}
+                {labelKey && <LabelList dataKey={labelKey} position="top" style={{ fontSize: '10px', fill: 'var(--text-muted)' }} />}
+              </Bar>
             </BarChart>
           )}
         </ResponsiveContainer>
@@ -230,13 +262,12 @@ export const VisualRenderer = React.memo(({ activeSheet, activeDataset, queryLoa
   );
 });
 
-// Sub-components for cleaner structure
 function LoadingOverlay() {
   return (
-    <div className="absolute inset-0 z-50 bg-slate-950/40 backdrop-blur-[2px] flex items-center justify-center animate-in fade-in duration-200">
+    <div className="absolute inset-0 z-50 bg-[var(--bg-main)]/40 backdrop-blur-[2px] flex items-center justify-center animate-in fade-in duration-200">
        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
-          <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest animate-pulse">Running Query...</p>
+          <div className="w-8 h-8 border-4 border-[var(--primary)]/20 border-t-[var(--primary)] rounded-full animate-spin"></div>
+          <p className="text-[10px] font-bold text-[var(--primary)] uppercase tracking-widest animate-pulse">Running Query...</p>
        </div>
     </div>
   );
@@ -244,11 +275,9 @@ function LoadingOverlay() {
 
 function EmptyState({ name }) {
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-700 font-sans">
+    <div className="absolute inset-0 flex flex-col items-center justify-center text-[var(--text-muted)] font-sans theme-transition">
       <BarChart2 size={48} className="mb-4 opacity-20" />
-      <p className="text-sm font-medium opacity-50 text-center px-10 leading-relaxed">
-        Drag dimensions to Columns and measures to Rows to visualize {name}
-      </p>
+      <p className="text-sm font-medium opacity-50 text-center px-10 leading-relaxed">Drag dimensions to Columns and measures to Rows to visualize {name}</p>
     </div>
   );
 }
