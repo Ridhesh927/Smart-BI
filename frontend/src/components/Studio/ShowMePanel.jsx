@@ -34,7 +34,10 @@ export const ShowMePanel = React.memo(({
               key={chart.name}
               onMouseEnter={() => setHoveredChart(chart)}
               onMouseLeave={() => setHoveredChart(null)}
-              onClick={() => updateActiveSheet({ type: chart.type })}
+              onClick={() => updateActiveSheet({ 
+                type: chart.type,
+                subType: chart.subType || null
+              })}
               className={`aspect-square rounded-lg border flex flex-col items-center justify-center gap-1.5 transition-all text-gray-400 hover:text-white group relative ${activeSheet.type === chart.type ? 'bg-[var(--primary)]/20 border-[var(--primary)]/50 text-[var(--primary)] shadow-[0_0_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-[var(--bg-main)] border-[var(--border)] hover:bg-[var(--bg-surface)]'}`}
             >
               <div className={`${activeSheet.type === chart.type ? 'text-[var(--primary)]' : 'text-[var(--text-muted)] group-hover:text-[var(--primary)]'}`}>

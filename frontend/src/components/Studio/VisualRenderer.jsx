@@ -3,7 +3,7 @@ import {
   BarChart, Bar, LineChart as ReLineChart, Line, XAxis, YAxis, 
   CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer, Legend, Cell,
   PieChart as RePieChart, Pie as RePie, AreaChart, Area,
-  ScatterChart, Scatter, ZAxis, LabelList
+  ScatterChart, Scatter, ZAxis, LabelList, Treemap, ComposedChart
 } from 'recharts';
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import { BarChart2 } from "lucide-react";
@@ -69,7 +69,7 @@ export const VisualRenderer = React.memo(({ activeSheet, activeDataset, queryLoa
         mapping[val] = CHART_COLORS[i % CHART_COLORS.length];
     });
     return mapping;
-  }, [activeSheet?.chartData, activeSheet?.shelves?.marks]);
+  }, [activeSheet]);
 
   // Early return if no data/config
   if (!activeSheet || !activeDataset) return null;
@@ -141,24 +141,51 @@ export const VisualRenderer = React.memo(({ activeSheet, activeDataset, queryLoa
 
   // 2. Data Table Rendering
   if (activeSheet.type === 'table' && hasData) {
+    const isHighlight = activeSheet.subType === 'highlight';
+    
+    // Compute column-wise max for highlighting
+    const colMaxs = {};
+    if (isHighlight) {
+      Object.keys(activeSheet.chartData[0] || {}).forEach(key => {
+        const values = activeSheet.chartData.map(d => Number(d[key])).filter(v => !isNaN(v));
+        if (values.length > 0) colMaxs[key] = Math.max(...values);
+      });
+    }
+
     return (
-      <div className="flex-1 min-h-0 relative overflow-hidden">
+      <div className="flex-1 min-h-0 relative overflow-hidden group/table">
         {queryLoading && <LoadingOverlay />}
-        <div className="w-full h-full overflow-auto bg-[var(--bg-main)]/20 rounded-xl p-2 slim-scrollbar scroll-smooth">
-          <table className="w-full text-left text-[11px] border-collapse">
-            <thead className="sticky top-0 bg-[var(--bg-sidebar)]/80 backdrop-blur-sm z-10">
+        <div className="w-full h-full overflow-auto bg-[var(--bg-main)]/20 rounded-xl p-2 slim-scrollbar scroll-smooth border border-[var(--border)]/50">
+          <table className="w-full text-left text-[11px] border-separate border-spacing-0">
+            <thead className="sticky top-0 bg-[var(--bg-sidebar)] z-10">
               <tr>
                 {Object.keys(activeSheet.chartData[0] || {}).map(key => (
-                  <th key={key} className="px-3 py-2 border-b border-[var(--border)] text-[var(--text-muted)] font-bold uppercase tracking-wider">{key}</th>
+                  <th key={key} className="px-3 py-2.5 border-b border-[var(--border)] text-[var(--text-muted)] font-bold uppercase tracking-wider bg-[var(--bg-sidebar)]/95 backdrop-blur-sm first:rounded-tl-lg last:rounded-tr-lg">{key}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {activeSheet.chartData.map((row, i) => (
-                <tr key={i} className="hover:bg-[var(--bg-surface)]/50 transition-colors">
-                  {Object.values(row).map((val, j) => (
-                    <td key={j} className="px-3 py-2 border-b border-[var(--border)]/50 text-[var(--text-main)]/80">{String(val)}</td>
-                  ))}
+                <tr key={i} className="hover:bg-[var(--bg-surface)]/30 transition-colors duration-150">
+                  {Object.entries(row).map(([key, val], j) => {
+                    const numVal = Number(val);
+                    const isNum = !isNaN(numVal) && typeof val !== 'boolean';
+                    const max = colMaxs[key];
+                    const ratio = isHighlight && isNum && max ? (numVal / max) : 0;
+                    
+                    return (
+                      <td 
+                        key={j} 
+                        className={`px-3 py-2 border-b border-[var(--border)]/30 text-[var(--text-main)]/90 transition-all duration-300 ${isHighlight && isNum ? 'font-medium' : ''}`}
+                        style={isHighlight && isNum ? {
+                          backgroundColor: `rgba(59, 130, 246, ${0.05 + ratio * 0.45})`,
+                          color: ratio > 0.7 ? '#fff' : 'var(--text-main)',
+                         } : {}}
+                      >
+                        {isNum ? numVal.toLocaleString() : String(val)}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>
@@ -192,27 +219,42 @@ export const VisualRenderer = React.memo(({ activeSheet, activeDataset, queryLoa
             <ReLineChart data={activeSheet.chartData} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
               <XAxis dataKey={getPillKey(activeSheet.shelves.columns[0])} stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} dy={10} />
-              <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
+              <YAxis yAxisId="left" stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
+              {activeSheet.subType === 'dual' && activeSheet.shelves.rows.length > 1 && (
+                <YAxis yAxisId="right" orientation="right" stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
+              )}
               <ReTooltip content={<CustomTooltip shelves={activeSheet.shelves} />} />
               <Legend />
-              <Line type="monotone" dataKey={getPillKey(activeSheet.shelves.rows[0])} stroke="var(--primary)" strokeWidth={3} dot={{ r: 4, fill: 'var(--primary)' }} activeDot={{ r: 6 }}>
-                {labelKey && <LabelList dataKey={labelKey} position="top" style={{ fontSize: '10px', fill: 'var(--text-muted)' }} />}
-              </Line>
+              {activeSheet.shelves.rows.map((rowPill, idx) => (
+                <Line 
+                  key={rowPill.pillId}
+                  yAxisId={(activeSheet.subType === 'dual' && idx === 1) ? 'right' : 'left'}
+                  type="monotone" 
+                  dataKey={getPillKey(rowPill)} 
+                  stroke={CHART_COLORS[idx % CHART_COLORS.length]} 
+                  strokeWidth={3} 
+                  dot={{ r: 4, fill: CHART_COLORS[idx % CHART_COLORS.length] }} 
+                  activeDot={{ r: 6 }}
+                  name={rowPill.displayName}
+                >
+                  {labelPill && <LabelList dataKey={labelKey} position="top" style={{ fontSize: '10px', fill: 'var(--text-muted)' }} />}
+                </Line>
+              ))}
             </ReLineChart>
           ) : activeSheet.type === 'area' ? (
             <AreaChart data={activeSheet.chartData} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
               <defs>
                 <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.4}/>
-                  <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
               <XAxis dataKey={getPillKey(activeSheet.shelves.columns[0])} stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} dy={10} />
               <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
               <ReTooltip content={<CustomTooltip shelves={activeSheet.shelves} />} />
-              <Area type="monotone" dataKey={getPillKey(activeSheet.shelves.rows[0])} stroke="var(--primary)" fillOpacity={1} fill="url(#areaGradient)" strokeWidth={2}>
-                {labelKey && <LabelList dataKey={labelKey} position="top" style={{ fontSize: '10px', fill: 'var(--text-muted)' }} />}
+              <Area type="monotone" dataKey={getPillKey(activeSheet.shelves.rows[0])} stroke="#3b82f6" fillOpacity={1} fill="url(#areaGradient)" strokeWidth={2}>
+                {labelPill && <LabelList dataKey={labelKey} position="top" style={{ fontSize: '10px', fill: 'var(--text-muted)' }} />}
               </Area>
             </AreaChart>
           ) : activeSheet.type === 'scatter' ? (
@@ -237,23 +279,126 @@ export const VisualRenderer = React.memo(({ activeSheet, activeDataset, queryLoa
                 {labelKey && <LabelList dataKey={labelKey} position="top" style={{ fontSize: '10px', fill: 'var(--text-muted)' }} />}
               </Scatter>
             </ScatterChart>
-          ) : (
+          ) : activeSheet.type === 'treemap' ? (
+            <Treemap
+              data={activeSheet.chartData}
+              dataKey={getPillKey(activeSheet.shelves.rows[0])}
+              nameKey={getPillKey(activeSheet.shelves.columns[0])}
+              aspectRatio={4 / 3}
+              stroke="#fff"
+              fill="var(--primary)"
+            >
+              <ReTooltip content={<CustomTooltip shelves={activeSheet.shelves} />} />
+            </Treemap>
+          ) : activeSheet.type === 'heatmap' ? (
             <BarChart data={activeSheet.chartData} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
+               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+               <XAxis dataKey={getPillKey(activeSheet.shelves.columns[0])} stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} dy={10} />
+               <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
+               <ReTooltip content={<CustomTooltip shelves={activeSheet.shelves} />} />
+               <Bar dataKey={getPillKey(activeSheet.shelves.rows[0])} radius={[4, 4, 0, 0]}>
+                 {activeSheet.chartData.map((entry, index) => {
+                    const value = entry[getPillKey(activeSheet.shelves.rows[0])];
+                    const max = Math.max(...activeSheet.chartData.map(d => d[getPillKey(activeSheet.shelves.rows[0])]));
+                    const opacity = 0.3 + (value / max) * 0.7;
+                    return <Cell key={`cell-${index}`} fill="var(--primary)" fillOpacity={opacity} />;
+                 })}
+               </Bar>
+            </BarChart>
+          ) : activeSheet.type === 'circle' ? (
+            <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey={getPillKey(activeSheet.shelves.columns[0])} stroke="var(--text-muted)" fontSize={10} />
+              <YAxis dataKey={getPillKey(activeSheet.shelves.rows[0])} stroke="var(--text-muted)" fontSize={10} />
+              <ZAxis type="number" dataKey={getPillKey(activeSheet.shelves.rows[1]) || getPillKey(activeSheet.shelves.rows[0])} range={[100, 1000]} />
+              <ReTooltip cursor={{ strokeDasharray: '3 3' }} content={<CustomTooltip shelves={activeSheet.shelves} />} />
+              <Legend />
+              <Scatter name={activeSheet.shelves.columns[0]?.name} data={activeSheet.chartData} fill="var(--primary)" fillOpacity={0.6}>
+                {activeSheet.chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                ))}
+              </Scatter>
+            </ScatterChart>
+          ) : activeSheet.type === 'histogram' ? (
+            <BarChart data={activeSheet.chartData} barCategoryGap={0} barGap={0} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
+               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+               <XAxis dataKey={getPillKey(activeSheet.shelves.columns[0])} stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} dy={10} />
+               <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
+               <ReTooltip content={<CustomTooltip shelves={activeSheet.shelves} />} />
+               <Bar dataKey={getPillKey(activeSheet.shelves.rows[0])} fill="var(--primary)" fillOpacity={0.8} stroke="var(--bg-main)" strokeWidth={1} radius={0} />
+            </BarChart>
+          ) : activeSheet.type === 'gantt' ? (
+            <BarChart 
+              data={activeSheet.chartData} 
+              layout="vertical"
+              margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+              <XAxis type="number" stroke="var(--text-muted)" fontSize={10} hide />
+              <YAxis 
+                type="category" 
+                dataKey={getPillKey(activeSheet.shelves.columns[0])} 
+                stroke="var(--text-muted)" 
+                fontSize={10} 
+                width={100}
+                tickLine={false}
+              />
+              <ReTooltip content={<CustomTooltip shelves={activeSheet.shelves} />} />
+              <Bar 
+                dataKey="ganttRange" 
+                fill="var(--primary)" 
+                radius={[4, 4, 4, 4]} 
+                barSize={20}
+              >
+                {activeSheet.chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          ) : (
+            <BarChart 
+              data={activeSheet.chartData} 
+              margin={{ top: 10, right: 30, left: 20, bottom: 20 }}
+              layout={activeSheet.subType === 'horizontal' ? 'vertical' : 'horizontal'}
+            >
               <defs>
                 <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.8}/><stop offset="95%" stopColor="var(--primary)" stopOpacity={0.2}/>
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/><stop offset="95%" stopColor="#3b82f6" stopOpacity={0.2}/>
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-              <XAxis dataKey={getPillKey(activeSheet.shelves.columns[0])} stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} dy={10} />
-              <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
+              
+              {activeSheet.subType === 'horizontal' ? (
+                <>
+                  <XAxis type="number" stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis type="category" dataKey={getPillKey(activeSheet.shelves.columns[0])} stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} width={100} />
+                </>
+              ) : (
+                <>
+                  <XAxis dataKey={getPillKey(activeSheet.shelves.columns[0])} stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} dy={10} />
+                  <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
+                </>
+              )}
+              
               <ReTooltip content={<CustomTooltip shelves={activeSheet.shelves} />} />
-              <Bar dataKey={getPillKey(activeSheet.shelves.rows[0])} fill={colorKey ? undefined : "url(#barGradient)"} radius={[6, 6, 0, 0]} barSize={32}>
-                {hasData && activeSheet.chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={colorKey ? (colorMap[entry[colorKey]] || 'var(--primary)') : undefined} />
-                ))}
-                {labelKey && <LabelList dataKey={labelKey} position="top" style={{ fontSize: '10px', fill: 'var(--text-muted)' }} />}
-              </Bar>
+              <Legend />
+              
+              {activeSheet.shelves.rows.map((rowPill, idx) => (
+                <Bar 
+                  key={rowPill.pillId}
+                  dataKey={getPillKey(rowPill)} 
+                  fill={colorKey ? undefined : (idx === 0 ? "url(#barGradient)" : CHART_COLORS[idx % CHART_COLORS.length])} 
+                  radius={activeSheet.subType === 'horizontal' ? [0, 6, 6, 0] : [6, 6, 0, 0]} 
+                  barSize={activeSheet.subType === 'horizontal' ? 20 : 32}
+                  stackId={activeSheet.subType === 'stacked' ? 'a' : undefined}
+                  name={rowPill.displayName}
+                >
+                  {colorKey && idx === 0 && hasData && activeSheet.chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={colorMap[entry[colorKey]] || 'var(--primary)'} />
+                  ))}
+                  {labelPill && <LabelList dataKey={labelKey} position={activeSheet.subType === 'horizontal' ? "right" : "top"} style={{ fontSize: '10px', fill: 'var(--text-muted)' }} />}
+                </Bar>
+              ))}
             </BarChart>
           )}
         </ResponsiveContainer>

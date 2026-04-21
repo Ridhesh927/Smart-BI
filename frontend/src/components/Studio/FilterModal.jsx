@@ -20,10 +20,10 @@ export function FilterModal({ field, datasetId, onConfirm, onCancel, user, datas
   const [wildcard, setWildcard] = useState({ matchType: 'contains', value: '' });
   
   // Condition State
-  const [condition, setCondition] = useState({ type: 'none', field: '', operator: '>', value: '' });
+  const [condition] = useState({ type: 'none', field: '', operator: '>', value: '' });
   
   // Top State
-  const [top, setTop] = useState({ active: false, type: 'top', count: 10, measure: '' });
+  const [top] = useState({ active: false, type: 'top', count: 10, measure: '' });
 
   useEffect(() => {
     const fetchValues = async () => {

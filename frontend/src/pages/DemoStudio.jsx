@@ -182,9 +182,19 @@ export default function DemoStudio() {
             return acc;
           }, {});
           updateActiveSheet({ chartData: Object.values(grouped) });
-        } else if (activeSheet.type === 'scatter' || activeSheet.type === 'map') {
-            // For scatter or map without grouping, just return raw data
-            updateActiveSheet({ chartData: activeDataset.data.slice(0, 50) });
+        } else if (activeSheet.type === 'scatter' || activeSheet.type === 'map' || activeSheet.type === 'gantt' || activeSheet.type === 'histogram') {
+            // For scatter, map, or specific demo types, return raw data with extra fields if needed
+            let data = activeDataset.data.slice(0, 50);
+            
+            // Add range for Gantt demo
+            if (activeSheet.type === 'gantt') {
+              data = data.map((d, i) => ({
+                ...d,
+                ganttRange: [i * 10, i * 10 + (d.Sales / 1000) + 5]
+              }));
+            }
+            
+            updateActiveSheet({ chartData: data });
         }
       }
       setQueryLoading(false);
@@ -205,9 +215,10 @@ export default function DemoStudio() {
        const dims = activeDataset.fields.dimensions.slice(0, 1);
        const meas = activeDataset.fields.measures.slice(0, 1);
        
-       updateActiveSheet({
-         type: targetChart.type,
-         shelves: {
+        updateActiveSheet({
+          type: targetChart.type,
+          subType: targetChart.subType || null,
+          shelves: {
            ...activeSheet.shelves,
            columns: dims.map(d => ({ ...d, pillId: `cols-${d.name}-${Date.now()}`, displayName: d.name })),
            rows: meas.map(m => ({ ...m, pillId: `rows-${m.name}-${Date.now()}`, displayName: m.name }))
